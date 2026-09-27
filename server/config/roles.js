@@ -1,0 +1,8 @@
+const ROLES = Object.freeze({
+  STUDENT: 'STUDENT',
+  ADMISSION_OFFICER: 'ADMISSION_OFFICER',
+  ADMIN: 'ADMIN',
+  FACULTY_COORDINATOR: 'FACULTY_COORDINATOR',
+});
+
+module.exports = { ROLES };
