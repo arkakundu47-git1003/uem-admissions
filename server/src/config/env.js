@@ -42,6 +42,11 @@ export const env = {
   BREVO_API_KEY: process.env.BREVO_API_KEY || '',
   RESEND_API_URL: process.env.RESEND_API_URL || 'https://api.resend.com/emails', // override only for tests
   BREVO_API_URL: process.env.BREVO_API_URL || 'https://api.brevo.com/v3/smtp/email', // override only for tests
+  // Reminders: an external scheduler calls POST /api/v1/internal/run-reminders with header x-cron-secret.
+  // Leave CRON_SECRET empty to disable the endpoint. Use 24+ random characters.
+  CRON_SECRET: process.env.CRON_SECRET || '',
+  REMINDER_MAX_PER_RUN: Number(process.env.REMINDER_MAX_PER_RUN || 150),
+  ANNOUNCEMENT_EMAIL_MAX: Number(process.env.ANNOUNCEMENT_EMAIL_MAX || 150), // free email plans cap daily sends (Brevo: 300/day)
   MAIL_FROM: process.env.MAIL_FROM || 'UEM Admissions <admissions@example.edu>',
   // No default on purpose: a default password in public source code is a published credential.
   SEED_PASSWORD: process.env.SEED_PASSWORD || '',

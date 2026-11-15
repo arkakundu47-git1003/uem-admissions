@@ -4,10 +4,12 @@ import courses from './courses.routes.js';
 import applications from './applications.routes.js';
 import review from './review.routes.js';
 import { admin, reports } from './admin.routes.js';
+import { internal } from './internal.routes.js';
 import { announcements, auditRoutes, notifications } from './misc.routes.js';
 
 const router = Router();
 router.use('/auth', auth);
+router.use('/internal', internal);
 router.use('/courses', courses);
 router.use('/applications', applications);
 router.use('/review', review);

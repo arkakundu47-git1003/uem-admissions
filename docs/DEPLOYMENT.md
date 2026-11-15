@@ -15,6 +15,8 @@ VPS or a college server.
 | `COOKIE_SECURE`, `COOKIE_SAMESITE` | no | Default `true` / `none` in production. Use `false` / `lax` only for plain-HTTP same-origin setups |
 | `UPLOAD_DIR`, `MAX_UPLOAD_MB` | no | Default `./uploads`, `5` (UPLOAD_DIR is also the temporary area when `STORAGE_DRIVER=gridfs`) |
 | `STORAGE_DRIVER` | no | `local` (default) or `gridfs`. **Use `gridfs` on Render free**: files then live in MongoDB and survive restarts/redeploys |
+| `CRON_SECRET` | for reminders | 24+ random characters (`node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"`). Lets the daily scheduler call `/api/v1/internal/run-reminders`. Empty = endpoint disabled (404) |
+| `REMINDER_MAX_PER_RUN`, `ANNOUNCEMENT_EMAIL_MAX` | no | Default `150` each. Caps emails per reminder run / per announcement so a free email plan's daily limit (Brevo: 300/day) is not exhausted; password-reset emails need headroom |
 | `RATE_LIMIT_SCALE` | no | Default `1`. Multiplies every rate-limit ceiling (e.g. `5` on a staging service for load tests; leave at `1` in production) |
 | `RESEND_API_KEY` | for email on Render | Resend API key (starts `re_`). Sends over HTTPS, which works on Render free. Needs a verified domain to email anyone but yourself |
 | `BREVO_API_KEY` | alternative | Brevo API key (v3). HTTPS; needs only a verified *sender address*, no domain |
@@ -76,6 +78,24 @@ The stack serves the app on port 8080 (nginx → API). For public use put a TLS 
 remove the two `COOKIE_*` overrides so cookies become `Secure`. Uploads and MongoDB data live in named volumes;
 back them up (see `DATABASE.md`).
 
+## Automatic reminders (deadline and missing documents)
+
+Render free sleeps when idle, so the server cannot reliably run its own timer. Instead a scheduler calls it once a day
+(this also wakes it up). The repo includes `.github/workflows/reminders.yml` (09:00 IST, GitHub Actions, free for public repos).
+
+1. On Render set `CRON_SECRET` to a random 24+ character value and save (it redeploys).
+2. On GitHub: repo → Settings → Secrets and variables → Actions → New repository secret:
+   `BACKEND_URL` = `https://uem-admissions.onrender.com` (no trailing slash) and `CRON_SECRET` = the same value.
+3. Run it once by hand: Actions tab → "Send admission reminders" → Run workflow. A green run prints JSON such as
+   `{"deadline":2,"documents":1,"skippedLimit":0,"dryRun":false}`.
+4. Preview without sending anything (replace the values): `curl.exe -X POST "https://uem-admissions.onrender.com/api/v1/internal/run-reminders?dryRun=true" -H "x-cron-secret: YOUR_SECRET"`.
+
+What is sent (each reminder once; re-running the job never duplicates it):
+- Draft application, course deadline in 7, 3 and 1 day(s): finish and submit.
+- Submitted / under-review application with missing or rejected documents: every 3 days, up to 30 days after submission.
+Each is an in-app notification plus an email when an email provider is configured. GitHub disables scheduled workflows in a
+repository with no activity for 60 days; re-enable under the Actions tab, or use cron-job.org with the same URL, method POST and header.
+
 ## Pre-launch checklist
 
 - [ ] Strong, unique JWT secrets; no `.env` committed
@@ -83,6 +103,7 @@ back them up (see `DATABASE.md`).
 - [ ] HTTPS everywhere; `CLIENT_ORIGIN` is the exact production origin
 - [ ] Atlas network allow-list restricted; automated backups enabled
 - [ ] Uploads on persistent storage (`STORAGE_DRIVER=gridfs`, a volume, or S3) and backed up
+- [ ] `CRON_SECRET` set on Render, `BACKEND_URL` and `CRON_SECRET` set as GitHub secrets, and one manual workflow run was green
 - [ ] Email provider configured (`RESEND_API_KEY` or `BREVO_API_KEY` on Render free) and a test email received
 - [ ] "Forgot password?" tested end to end (email arrives, link works once, old password stops working); `CLIENT_ORIGIN` starts with the real frontend URL because reset links are built from it
 - [ ] Payment gateway integrated (the bundled one is a simulation)

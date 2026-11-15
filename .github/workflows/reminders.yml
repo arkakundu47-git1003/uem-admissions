@@ -1,0 +1,25 @@
+name: Send admission reminders
+
+# Calls the backend once a day (09:00 IST). This also wakes a sleeping Render free service.
+# Needs two repository secrets: BACKEND_URL (e.g. https://uem-admissions.onrender.com) and CRON_SECRET (same value as on Render).
+on:
+  schedule:
+    - cron: '30 3 * * *' # 03:30 UTC = 09:00 IST
+  workflow_dispatch: {} # lets you run it by hand from the Actions tab
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger reminders
+        env:
+          BACKEND_URL: ${{ secrets.BACKEND_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+          # Render free can take ~60 s to wake up, so allow retries and a long timeout.
+          curl --fail-with-body --silent --show-error \
+            --retry 5 --retry-delay 20 --retry-all-errors --max-time 120 \
+            -X POST "$BACKEND_URL/api/v1/internal/run-reminders" \
+            -H "x-cron-secret: $CRON_SECRET"
+          echo
