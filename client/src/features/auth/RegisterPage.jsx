@@ -21,7 +21,7 @@ const schema = z
     dateOfBirth: z.string().min(1, 'Enter your date of birth').refine((v) => new Date(v) < new Date(Date.now() - 14 * 365.25 * 864e5), 'You must be at least 14 years old'),
     password: z.string().min(8, 'Use at least 8 characters').regex(/[a-z]/, 'Include a lowercase letter').regex(/[A-Z]/, 'Include an uppercase letter').regex(/\d/, 'Include a number'),
     confirm: z.string().min(1, 'Re-enter your password'),
-    terms: z.literal(true, { errorMap: () => ({ message: 'Please accept to continue' }) }),
+    terms: z.literal(true, { error: 'Please accept to continue' }),
   })
   .refine((v) => v.password === v.confirm, { message: 'Passwords do not match', path: ['confirm'] });
 

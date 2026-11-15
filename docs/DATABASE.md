@@ -21,8 +21,10 @@ users 1 ── * notifications
 applications 1 ── * documents (embedded)   applications 1 ── * history (embedded)
 ```
 Documents and history are embedded because they are always read with their application and are bounded in size.
-Uploaded files are **not** in the database: only metadata (name, MIME type, size, status, review remark); the file
-itself is in `UPLOAD_DIR` and is served only through an authenticated endpoint.
+Uploaded files: each application document stores metadata (name, MIME type, size, status, review remark, `storage`).
+With `STORAGE_DRIVER=local` the file is in `UPLOAD_DIR`; with `STORAGE_DRIVER=gridfs` it is in the GridFS bucket
+`documents` (collections `documents.files` and `documents.chunks`) and the document holds a `fileId`. Either way
+files are served only through an authenticated endpoint.
 
 ### Status lifecycle
 `draft → submitted → under_review → documents_verified → accepted | rejected | waitlisted`
@@ -56,6 +58,7 @@ Create additional staff from the admin console (Users → New staff account), no
 - **Self-hosted / Docker:**
   `docker compose exec mongo mongodump --archive --gzip > backup-$(date +%F).gz`
   restore with `mongorestore --archive --gzip < backup.gz`.
-- Back up the `uploads` volume alongside the database; the two must stay consistent.
+- With `local` storage back up the `uploads` volume alongside the database; the two must stay consistent. With
+  `gridfs`, `mongodump` already includes `documents.files`/`documents.chunks`, so one backup covers both.
 - Review `auditlogs` periodically; add a TTL index if you need to expire old entries:
   `db.auditlogs.createIndex({ createdAt: 1 }, { expireAfterSeconds: 31536000 })`.

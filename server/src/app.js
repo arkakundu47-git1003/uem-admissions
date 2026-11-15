@@ -4,7 +4,7 @@ import cors from 'cors';
 import compression from 'compression';
 import cookieParser from 'cookie-parser';
 import morgan from 'morgan';
-import rateLimit from 'express-rate-limit';
+import { apiLimiter } from './middleware/rateLimits.js';
 import { env } from './config/env.js';
 import routes from './routes/index.js';
 import { errorHandler, notFound } from './middleware/error.js';
@@ -27,12 +27,7 @@ export function createApp() {
   if (env.NODE_ENV !== 'test') app.use(morgan(env.isProd ? 'combined' : 'dev'));
 
   app.get('/health', (req, res) => res.json({ status: 'ok', uptime: process.uptime() }));
-  app.use('/api', rateLimit({
-  windowMs: 15 * 60 * 1000,
-  limit: 1000,
-  standardHeaders: true,
-  legacyHeaders: false
-}));
+  app.use('/api', apiLimiter);
   app.use('/api/v1', routes);
 
   app.use(notFound);

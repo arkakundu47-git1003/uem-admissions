@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import jwt from 'jsonwebtoken';
-import rateLimit from 'express-rate-limit';
+import { loginIpLimiter, loginEmailLimiter, registerLimiter } from '../middleware/rateLimits.js';
 import { z } from 'zod';
 import { env } from '../config/env.js';
 import { User } from '../models/User.js';
@@ -9,13 +9,6 @@ import { validate } from '../middleware/validate.js';
 import { ApiError, asyncHandler } from '../utils/http.js';
 
 const router = Router();
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  limit: 40,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { message: 'Too many attempts. Please try again in a few minutes.' },
-});
 
 const COOKIE = 'refresh_token';
 const cookieOptions = {
@@ -47,7 +40,7 @@ const registerSchema = z.object({
   name: z.string().trim().min(2, 'Enter your full name').max(80),
   email: z.string().trim().toLowerCase().email('Enter a valid email address'),
   phone: z.string().trim().regex(/^\+?\d{10,13}$/, 'Enter a valid phone number (10–13 digits)'),
-  dateOfBirth: z.coerce.date({ invalid_type_error: 'Enter a valid date of birth' }).refine(
+  dateOfBirth: z.coerce.date({ error: 'Enter a valid date of birth' }).refine(
     (d) => d < new Date(Date.now() - 14 * 365.25 * 24 * 3600 * 1000),
     'You must be at least 14 years old',
   ),
@@ -61,7 +54,7 @@ const loginSchema = z.object({
 
 router.post(
   '/register',
-  authLimiter,
+  registerLimiter,
   validate(registerSchema),
   asyncHandler(async (req, res) => {
     if (await User.exists({ email: req.body.email })) {
@@ -77,8 +70,9 @@ const LOCK_MINUTES = 15;
 
 router.post(
   '/login',
-  authLimiter,
+  loginIpLimiter,
   validate(loginSchema),
+  loginEmailLimiter,
   asyncHandler(async (req, res) => {
     const user = await User.findOne({ email: req.body.email }).select('+password +tokenVersion +failedLogins +lockUntil');
     const invalid = new ApiError(401, 'Incorrect email or password');
