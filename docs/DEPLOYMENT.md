@@ -18,7 +18,7 @@ VPS or a college server.
 | `RATE_LIMIT_SCALE` | no | Default `1`. Multiplies every rate-limit ceiling (e.g. `5` on a staging service for load tests; leave at `1` in production) |
 | `RESEND_API_KEY` | for email on Render | Resend API key (starts `re_`). Sends over HTTPS, which works on Render free. Needs a verified domain to email anyone but yourself |
 | `BREVO_API_KEY` | alternative | Brevo API key (v3). HTTPS; needs only a verified *sender address*, no domain |
-| `EMAIL_PROVIDER` | no | `resend`, `brevo`, `smtp` or `none`. Empty = auto: Resend key, else Brevo key, else SMTP |
+| `EMAIL_PROVIDER` | no | `resend`, `brevo`, `smtp` or `none`. Set explicitly to `brevo` on Render when using Brevo; otherwise empty auto-selects Resend, then Brevo, then SMTP |
 | `MAIL_FROM` | yes with any provider | e.g. `UEM Admissions <admissions@yourdomain.com>`. Must be on your verified domain (Resend) or a verified sender (Brevo) |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` | no | Plain SMTP. **Does not work on Render free** (outbound ports 25/465/587 are blocked; you will see `Connection timeout`). Fine on paid Render, a VPS or Docker |
 | `PORT` | no | Default `5000` (most hosts inject it) |
@@ -35,6 +35,12 @@ VPS or a college server.
    `mongodb+srv://USER:PASS@cluster0.xxxx.mongodb.net/admission_portal`.
 2. **API on Render.** New → Web Service from your Git repo, root directory `server`, build `npm install`,
    start `npm start`, health check path `/health`. Add the environment variables above.
+   For Brevo email, set `EMAIL_PROVIDER=brevo`, `BREVO_API_KEY` to a Brevo transactional API key, and
+   `MAIL_FROM` to a sender address verified in Brevo. Do not configure Gmail SMTP as the Render email path.
+   After deploying, check Render logs for `forgot_password_request_received`, `provider_selected`,
+   `api_request_initiated`, `api_response_received`, and `provider_accepted` or `delivery_failed`.
+   A provider acceptance means Brevo accepted the API request; verify actual delivery in Brevo's
+   **Transactional > Logs** and check sender/domain authentication, suppression, and recipient status there.
    Render's free disk is ephemeral. Set `STORAGE_DRIVER=gridfs` so documents are stored in MongoDB (bucket
    `documents`), or attach a persistent disk / move uploads to S3.
    **Rolling out gridfs:** set the variable, let Render redeploy, upload a test document as an applicant, then use

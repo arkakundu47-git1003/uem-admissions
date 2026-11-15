@@ -7,11 +7,14 @@ const KEY = 're_SuperSecretKey1234567890';
 const TOKEN = 'a1b2c3d4'.repeat(8); // 64 hex chars, same shape as a reset token
 const SNAP = { ...env };
 let errors;
+let infos;
 
 beforeEach(() => {
   Object.assign(env, { EMAIL_PROVIDER: '', RESEND_API_KEY: '', BREVO_API_KEY: '', SMTP_HOST: '', MAIL_FROM: 'UEM Admissions <noreply@uem.example>' });
   errors = [];
+  infos = [];
   vi.spyOn(console, 'error').mockImplementation((...a) => errors.push(a.join(' ')));
+  vi.spyOn(console, 'info').mockImplementation((...a) => infos.push(a.join(' ')));
   vi.spyOn(console, 'warn').mockImplementation(() => {});
   vi.spyOn(console, 'log').mockImplementation(() => {});
 });
@@ -86,7 +89,8 @@ describe('resend over HTTPS', () => {
 });
 
 describe('brevo over HTTPS', () => {
-  it('uses api-key header and brevo payload shape', async () => {
+  it('uses api-key header and brevo payload shape, and records provider acceptance', async () => {
+    env.EMAIL_PROVIDER = 'brevo';
     env.BREVO_API_KEY = 'xkeysib-secretsecretsecret';
     const f = vi.fn().mockResolvedValue({ ok: true, status: 201, json: async () => ({ messageId: 'm' }) });
     vi.stubGlobal('fetch', f);
@@ -95,6 +99,45 @@ describe('brevo over HTTPS', () => {
     expect(url).toBe('https://api.brevo.com/v3/smtp/email');
     expect(init.headers['api-key']).toBe('xkeysib-secretsecretsecret');
     expect(JSON.parse(init.body)).toEqual({ sender: { name: 'UEM Admissions', email: 'noreply@uem.example' }, to: [{ email: 'user@x.com' }], subject: 'Subject', textContent: 'Body' });
+    expect(errors).toHaveLength(0);
+    expect(infos.join(' ')).toMatch(/provider_accepted/);
+  });
+
+  it('does not fall back to SMTP when Brevo is explicitly selected without a key', async () => {
+    env.EMAIL_PROVIDER = 'brevo';
+    env.BREVO_API_KEY = '';
+    env.SMTP_HOST = 'smtp.example.com';
+    const f = vi.fn();
+    vi.stubGlobal('fetch', f);
+    expect(await sendEmail('user@x.com', 'Subject', 'Body')).toBe(false);
+    expect(f).not.toHaveBeenCalled();
+    expect(errors.join(' ')).toMatch(/BREVO_API_KEY is not set/);
+  });
+
+  it('reports an invalid key without logging the key value', async () => {
+    env.EMAIL_PROVIDER = 'brevo';
+    env.BREVO_API_KEY = 'xkeysib-test-secret-key';
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 401, json: async () => ({ message: `Invalid key ${env.BREVO_API_KEY}` }) }));
+    expect(await sendEmail('user@x.com', 'Subject', 'Body')).toBe(false);
+    expect(errors.join(' ')).toMatch(/HTTP 401.*API key rejected/);
+    expect(errors.join(' ')).not.toContain(env.BREVO_API_KEY);
+  });
+
+  it('reports sender verification rejection without exposing recipient details', async () => {
+    env.EMAIL_PROVIDER = 'brevo';
+    env.BREVO_API_KEY = 'xkeysib-test-secret-key';
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 400, json: async () => ({ message: 'Sender is not verified' }) }));
+    expect(await sendEmail('student@example.com', 'Subject', 'Body')).toBe(false);
+    expect(errors.join(' ')).toMatch(/HTTP 400.*verify MAIL_FROM/);
+    expect(errors.join(' ')).not.toContain('student@example.com');
+  });
+
+  it('handles a Brevo API timeout without throwing', async () => {
+    env.EMAIL_PROVIDER = 'brevo';
+    env.BREVO_API_KEY = 'xkeysib-test-secret-key';
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(Object.assign(new Error('timeout'), { name: 'TimeoutError' })));
+    expect(await sendEmail('user@x.com', 'Subject', 'Body')).toBe(false);
+    expect(errors.join(' ')).toMatch(/no response within 10s/);
   });
 });
 
@@ -126,7 +169,7 @@ describe('smtp and none', () => {
     const t = Date.now();
     expect(await sendEmail('a@b.com', 'S', 'x')).toBe(false);
     expect(Date.now() - t).toBeLessThan(15000);
-    expect(errors.join('')).toMatch(/smtp send failed/);
+    expect(errors.join('')).toMatch(/"provider":"smtp".*outbound SMTP is blocked on Render free services/);
   }, 20000);
   it('no provider: returns false', async () => {
     expect(await sendEmail('a@b.com', 'S', 'x')).toBe(false);

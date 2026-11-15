@@ -2,7 +2,7 @@ import { Router } from 'express';
 import jwt from 'jsonwebtoken';
 import { loginIpLimiter, loginEmailLimiter, registerLimiter, forgotIpLimiter, forgotEmailLimiter, resetLimiter, changePasswordLimiter } from '../middleware/rateLimits.js';
 import { createResetLink, emailResetLink, findByResetToken } from '../services/passwordReset.js';
-import { sendEmail } from '../services/mailer.js';
+import { emailProvider, logEmailEvent, maskEmail, sendEmail } from '../services/mailer.js';
 import { audit } from '../services/notify.js';
 import { z } from 'zod';
 import { env } from '../config/env.js';
@@ -136,7 +136,7 @@ const changeSchema = z
   .object({ currentPassword: z.string().min(1, 'Enter your current password'), newPassword: password })
   .refine((v) => v.currentPassword !== v.newPassword, { message: 'Choose a password different from the current one', path: ['newPassword'] });
 
-const FORGOT_REPLY = { message: 'If an account exists for that email, a reset link has been sent. It is valid for 30 minutes.' };
+const FORGOT_REPLY = { message: 'If an account exists for that email, you will receive instructions to reset your password. The link is valid for 30 minutes.' };
 
 // Always answers the same way so the form cannot be used to discover which emails are registered.
 router.post(
@@ -145,10 +145,29 @@ router.post(
   validate(forgotSchema),
   forgotEmailLimiter,
   asyncHandler(async (req, res) => {
+    const recipient = maskEmail(req.body.email);
+    logEmailEvent('forgot_password_request_received', { recipient });
     const user = await User.findOne({ email: req.body.email });
+    logEmailEvent('forgot_password_user_lookup_completed', {
+      accountFound: Boolean(user),
+      accountActive: Boolean(user?.isActive),
+    });
     if (user && user.isActive) {
       const url = await createResetLink(user);
-      emailResetLink(user, url); // not awaited: response time must not reveal whether the account exists
+      logEmailEvent('forgot_password_reset_token_generated');
+      const provider = emailProvider();
+      logEmailEvent('provider_selected', { provider, recipient });
+      void emailResetLink(user, url)
+        .then((accepted) => {
+          logEmailEvent(accepted ? 'email_accepted_by_provider' : 'email_rejected_by_provider', { provider, recipient });
+        })
+        .catch((err) => {
+          logEmailEvent('email_delivery_failure', {
+            provider,
+            recipient,
+            error: err?.name || 'Error',
+          }, 'error');
+        });
       audit(user, 'auth.forgot_password', 'User', user.id);
     }
     res.json(FORGOT_REPLY);

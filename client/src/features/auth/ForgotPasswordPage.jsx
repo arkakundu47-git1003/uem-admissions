@@ -30,7 +30,7 @@ export default function ForgotPasswordPage() {
   return (
     <AuthShell title="Reset your password" subtitle="Enter your account email and we will send you a link to choose a new password." footer={<>Remembered it? <Link to="/login">Back to sign in</Link></>}>
       {sent ? (
-        <Alert tone="success">If an account exists for <strong>{sent}</strong>, a reset link is on its way. It is valid for 30 minutes. Check your spam folder if it does not arrive.</Alert>
+        <Alert tone="success">If an account exists for <strong>{sent}</strong>, you will receive instructions to reset your password. The link is valid for 30 minutes. Check your spam folder if it does not arrive.</Alert>
       ) : (
         <form onSubmit={handleSubmit(onSubmit)} noValidate className="stack" aria-label="Request password reset">
           {formError && <Alert tone="danger">{formError}</Alert>}

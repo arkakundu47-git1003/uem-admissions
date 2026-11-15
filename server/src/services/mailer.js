@@ -24,22 +24,39 @@ export function parseFrom(from) {
 }
 
 // Defence in depth: strip anything that looks like a secret or a reset token from text we log.
-const redact = (s) =>
-  String(s ?? '')
+const redact = (s) => {
+  let value = String(s ?? '')
     .replace(/re_[A-Za-z0-9_]{8,}/g, '[redacted-key]')
     .replace(/xkeysib-[A-Za-z0-9-]{8,}/g, '[redacted-key]')
+    .replace(/https?:\/\/[^\s"'<>]*reset-password[^\s"'<>]*/gi, '[redacted-reset-url]')
     .replace(/\b[0-9a-f]{40,}\b/gi, '[redacted-token]')
     .replace(/token=[^\s&"]+/gi, 'token=[redacted]')
-    .slice(0, 300);
+    .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, (email) => maskEmail(email));
+  for (const secret of [env.BREVO_API_KEY, env.RESEND_API_KEY, env.SMTP_PASS, env.JWT_ACCESS_SECRET, env.JWT_REFRESH_SECRET]) {
+    if (secret) value = value.split(secret).join('[redacted-secret]');
+  }
+  return value.slice(0, 300);
+};
+
+export const maskEmail = (email) => String(email).replace(/^(.).*(@.*)$/, '$1***$2');
+
+export function logEmailEvent(event, details = {}, level = 'info') {
+  console[level]('[email]', JSON.stringify({ event, ...details }));
+}
 
 function fail(provider, to, detail, hint) {
-  console.error(`[email] ${provider} send failed (to=${maskEmail(to)}): ${redact(detail)}${hint ? ` | ${hint}` : ''}`);
+  logEmailEvent('delivery_failed', {
+    provider,
+    recipient: maskEmail(to),
+    error: redact(detail),
+    ...(hint && { hint }),
+  }, 'error');
   return false;
 }
-const maskEmail = (e) => String(e).replace(/^(.).*(@.*)$/, '$1***$2');
 
 async function postJson(provider, url, headers, payload, to) {
   let res;
+  logEmailEvent('api_request_initiated', { provider, recipient: maskEmail(to) });
   try {
     res = await fetch(url, {
       method: 'POST',
@@ -49,9 +66,16 @@ async function postJson(provider, url, headers, payload, to) {
     });
   } catch (err) {
     const timedOut = err?.name === 'TimeoutError' || err?.name === 'AbortError';
-    return fail(provider, to, timedOut ? `no response within ${TIMEOUT_MS / 1000}s` : `network error: ${err?.cause?.code || err?.message}`);
+    const detail = timedOut
+      ? `no response within ${TIMEOUT_MS / 1000}s`
+      : `network error${err?.cause?.code ? `: ${err.cause.code}` : ` (${err?.name || 'Error'})`}`;
+    return fail(provider, to, detail);
   }
-  if (res.ok) return true;
+  logEmailEvent('api_response_received', { provider, recipient: maskEmail(to), status: res.status, ok: res.ok });
+  if (res.ok) {
+    logEmailEvent('provider_accepted', { provider, recipient: maskEmail(to), status: res.status });
+    return true;
+  }
   let msg = '';
   try {
     const body = await res.json();
@@ -63,7 +87,10 @@ async function postJson(provider, url, headers, payload, to) {
     422: 'invalid request: check MAIL_FROM format and that its address/domain is verified with the provider',
     429: 'provider rate limit reached',
   };
-  return fail(provider, to, `HTTP ${res.status} ${typeof msg === 'string' ? msg : JSON.stringify(msg)}`, hints[res.status]);
+  const senderHint = provider === 'brevo' && /sender.*(verif|valid|authori)/i.test(msg)
+    ? 'Brevo rejected the sender: verify MAIL_FROM in the Brevo sender settings'
+    : undefined;
+  return fail(provider, to, `HTTP ${res.status} ${typeof msg === 'string' ? msg : JSON.stringify(msg)}`, senderHint || hints[res.status]);
 }
 
 let transporter;

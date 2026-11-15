@@ -21,7 +21,7 @@ describe.skipIf(!URI)('forgot-password through the real HTTPS mailer', () => {
     });
     await new Promise((r) => server.listen(0, '127.0.0.1', r));
     Object.assign(env, { EMAIL_PROVIDER: 'resend', RESEND_API_KEY: KEY, RESEND_API_URL: `http://127.0.0.1:${server.address().port}/emails`, CLIENT_ORIGIN: 'https://uem-admissions-ten.vercel.app,http://localhost:5173' });
-    for (const k of ['log', 'error', 'warn']) vi.spyOn(console, k).mockImplementation((...a) => logs.push(a.join(' ')));
+    for (const k of ['log', 'info', 'error', 'warn']) vi.spyOn(console, k).mockImplementation((...a) => logs.push(a.join(' ')));
     await mongoose.connect(URI); await mongoose.connection.dropDatabase(); await User.init(); app = createApp();
     await User.create({ name: 'Flow Tester', email: 'flow@test.com', password: 'FlowPass123' });
   });
@@ -30,6 +30,7 @@ describe.skipIf(!URI)('forgot-password through the real HTTPS mailer', () => {
   it('sends the reset link by HTTPS API, and the link completes a real reset', async () => {
     const r = await request(app).post('/api/v1/auth/forgot-password').send({ email: 'flow@test.com' });
     expect(r.status).toBe(200);
+    expect(r.body.message).not.toMatch(/sent|on its way/i);
     await vi.waitFor(() => expect(received).toHaveLength(1));
     expect(received[0].auth).toBe(`Bearer ${KEY}`);
     expect(received[0].body.to).toEqual(['flow@test.com']);
@@ -39,6 +40,15 @@ describe.skipIf(!URI)('forgot-password through the real HTTPS mailer', () => {
     expect(ok.status).toBe(200);
     expect((await request(app).post('/api/v1/auth/login').send({ email: 'flow@test.com', password: 'BrandNew123' })).status).toBe(200);
     const all = logs.join('\n');
+    expect(all).toMatch(/forgot_password_request_received/);
+    expect(all).toMatch(/forgot_password_user_lookup_completed/);
+    expect(all).toMatch(/forgot_password_reset_token_generated/);
+    expect(all).toMatch(/provider_selected/);
+    expect(all).toMatch(/api_request_initiated/);
+    expect(all).toMatch(/api_response_received/);
+    expect(all).toMatch(/provider_accepted/);
+    expect(all).toMatch(/email_accepted_by_provider/);
+    expect(all).not.toContain('reset-password?token=');
     expect(all).not.toContain(KEY);
     expect(all).not.toContain(m[1]);
   });
@@ -48,7 +58,7 @@ describe.skipIf(!URI)('forgot-password through the real HTTPS mailer', () => {
     logs.length = 0;
     const r = await request(app).post('/api/v1/auth/forgot-password').send({ email: 'flow@test.com' });
     expect(r.status).toBe(200);
-    await vi.waitFor(() => expect(logs.join('')).toMatch(/\[email\] resend send failed/));
+    await vi.waitFor(() => expect(logs.join('')).toMatch(/"event":"delivery_failed".*"provider":"resend"/));
     expect(logs.join('\n')).not.toContain(KEY);
     expect(logs.join('\n')).not.toMatch(/[0-9a-f]{64}/);
   });

@@ -7,6 +7,9 @@ const mails = [];
 let mailOk = true;
 vi.mock('../src/services/mailer.js', () => ({
   emailEnabled: () => true,
+  emailProvider: () => 'brevo',
+  maskEmail: (email) => String(email).replace(/^(.).*(@.*)$/, '$1***$2'),
+  logEmailEvent: () => {},
   sendEmail: async (to, subject, text) => { mails.push({ to, subject, text }); return mailOk; },
 }));
 
@@ -66,6 +69,7 @@ describe.skipIf(!URI)('password management', () => {
     expect(known.status).toBe(200);
     expect(unknown.status).toBe(200);
     expect(known.body).toEqual(unknown.body);
+    expect(known.body.message).not.toMatch(/sent|on its way/i);
     expect(mails.filter((m) => m.to === 'nobody@test.com')).toHaveLength(0);
     expect(lastReset().to).toBe(creds.email);
   });
