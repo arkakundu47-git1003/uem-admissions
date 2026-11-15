@@ -9,7 +9,6 @@ import { ApiError, asyncHandler, escapeRegex, pageParams } from '../utils/http.j
 import { courseScope } from '../services/access.js';
 import { audit } from '../services/notify.js';
 import { createResetLink, emailResetLink } from '../services/passwordReset.js';
-import { emailEnabled } from '../services/mailer.js';
 
 export const admin = Router();
 admin.use(protect, authorize('admin'));
@@ -83,7 +82,7 @@ admin.post(
     const url = await createResetLink(user);
     const emailed = await emailResetLink(user, url);
     await audit(req.user, 'user.reset_password', 'User', user.id, { emailed });
-    res.json({ emailed, ...(emailEnabled() ? {} : { resetUrl: url }) });
+    res.json({ emailed, ...(emailed ? {} : { resetUrl: url }) }); // link shown only if the email could not be sent
   }),
 );
 

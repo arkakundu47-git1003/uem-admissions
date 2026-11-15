@@ -16,7 +16,11 @@ VPS or a college server.
 | `UPLOAD_DIR`, `MAX_UPLOAD_MB` | no | Default `./uploads`, `5` (UPLOAD_DIR is also the temporary area when `STORAGE_DRIVER=gridfs`) |
 | `STORAGE_DRIVER` | no | `local` (default) or `gridfs`. **Use `gridfs` on Render free**: files then live in MongoDB and survive restarts/redeploys |
 | `RATE_LIMIT_SCALE` | no | Default `1`. Multiplies every rate-limit ceiling (e.g. `5` on a staging service for load tests; leave at `1` in production) |
-| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM` | no* | Enables real emails. *Required in practice for the "Forgot password?" flow: without it no reset link can be delivered (admins can still generate a link from Users → Reset password, which is shown on screen when email is off) |
+| `RESEND_API_KEY` | for email on Render | Resend API key (starts `re_`). Sends over HTTPS, which works on Render free. Needs a verified domain to email anyone but yourself |
+| `BREVO_API_KEY` | alternative | Brevo API key (v3). HTTPS; needs only a verified *sender address*, no domain |
+| `EMAIL_PROVIDER` | no | `resend`, `brevo`, `smtp` or `none`. Empty = auto: Resend key, else Brevo key, else SMTP |
+| `MAIL_FROM` | yes with any provider | e.g. `UEM Admissions <admissions@yourdomain.com>`. Must be on your verified domain (Resend) or a verified sender (Brevo) |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` | no | Plain SMTP. **Does not work on Render free** (outbound ports 25/465/587 are blocked; you will see `Connection timeout`). Fine on paid Render, a VPS or Docker |
 | `PORT` | no | Default `5000` (most hosts inject it) |
 
 ### Web app (`client/`)
@@ -73,7 +77,7 @@ back them up (see `DATABASE.md`).
 - [ ] HTTPS everywhere; `CLIENT_ORIGIN` is the exact production origin
 - [ ] Atlas network allow-list restricted; automated backups enabled
 - [ ] Uploads on persistent storage (`STORAGE_DRIVER=gridfs`, a volume, or S3) and backed up
-- [ ] SMTP configured and a test notification received
+- [ ] Email provider configured (`RESEND_API_KEY` or `BREVO_API_KEY` on Render free) and a test email received
 - [ ] "Forgot password?" tested end to end (email arrives, link works once, old password stops working); `CLIENT_ORIGIN` starts with the real frontend URL because reset links are built from it
 - [ ] Payment gateway integrated (the bundled one is a simulation)
 - [ ] Uptime check on `/health`; error monitoring (e.g. Sentry) added

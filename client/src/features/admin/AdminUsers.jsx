@@ -57,7 +57,7 @@ function ResetLinkModal({ info, onClose }) {
         <p>A reset link was emailed to <strong>{info.email}</strong>. It is valid for 30 minutes and works once.</p>
       ) : (
         <div className="stack">
-          <p>Email is not configured, so nothing was sent. Give this link to <strong>{info?.email}</strong> through a trusted channel. It is valid for 30 minutes and works once:</p>
+          <p>The email could not be sent (email may not be configured, or the provider rejected it; see the server logs). Give this link to <strong>{info?.email}</strong> through a trusted channel. It is valid for 30 minutes and works once:</p>
           <TextField label="Reset link" readOnly value={info?.resetUrl || ''} onFocus={(e) => e.target.select()} />
         </div>
       )}

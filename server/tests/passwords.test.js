@@ -4,9 +4,10 @@ import request from 'supertest';
 import mongoose from 'mongoose';
 
 const mails = [];
+let mailOk = true;
 vi.mock('../src/services/mailer.js', () => ({
   emailEnabled: () => true,
-  sendEmail: async (to, subject, text) => { mails.push({ to, subject, text }); return true; },
+  sendEmail: async (to, subject, text) => { mails.push({ to, subject, text }); return mailOk; },
 }));
 
 const { createApp } = await import('../src/app.js');
@@ -110,6 +111,11 @@ describe.skipIf(!URI)('password management', () => {
     expect(mails.length).toBe(before + 1);
     const apl = await login('ResetPass123');
     expect((await request(app).post(`/api/v1/admin/users/${target.id}/reset-password`).set('Authorization', `Bearer ${apl.body.accessToken}`)).status).toBe(403);
+    mailOk = false; // provider outage: admin must still be able to hand the link over
+    const down = await request(app).post(`/api/v1/admin/users/${target.id}/reset-password`).set('Authorization', `Bearer ${adm.body.accessToken}`);
+    expect(down.body.emailed).toBe(false);
+    expect(down.body.resetUrl).toMatch(/reset-password\?token=[0-9a-f]{64}/);
+    mailOk = true;
     await User.updateOne({ _id: target._id }, { isActive: false });
     expect((await request(app).post(`/api/v1/admin/users/${target.id}/reset-password`).set('Authorization', `Bearer ${adm.body.accessToken}`)).status).toBe(409);
   });

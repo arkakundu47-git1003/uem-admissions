@@ -35,6 +35,13 @@ export const env = {
   SMTP_PORT: Number(process.env.SMTP_PORT || 587),
   SMTP_USER: process.env.SMTP_USER || '',
   SMTP_PASS: process.env.SMTP_PASS || '',
+  // Email provider: 'resend' | 'brevo' | 'smtp' | 'none'. Empty = auto (Resend key, else Brevo key, else SMTP, else none).
+  // Render free blocks outbound SMTP (ports 25/465/587), so use an HTTPS provider there.
+  EMAIL_PROVIDER: (process.env.EMAIL_PROVIDER || '').toLowerCase(),
+  RESEND_API_KEY: process.env.RESEND_API_KEY || '',
+  BREVO_API_KEY: process.env.BREVO_API_KEY || '',
+  RESEND_API_URL: process.env.RESEND_API_URL || 'https://api.resend.com/emails', // override only for tests
+  BREVO_API_URL: process.env.BREVO_API_URL || 'https://api.brevo.com/v3/smtp/email', // override only for tests
   MAIL_FROM: process.env.MAIL_FROM || 'UEM Admissions <admissions@example.edu>',
   // No default on purpose: a default password in public source code is a published credential.
   SEED_PASSWORD: process.env.SEED_PASSWORD || '',
