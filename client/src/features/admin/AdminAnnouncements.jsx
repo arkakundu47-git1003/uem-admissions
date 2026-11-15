@@ -11,15 +11,19 @@ import { EmptyState, Skeleton } from '../../components/ui/Feedback';
 import { TextAreaField, TextField } from '../../components/ui/Field';
 import { formatDate } from '../../lib/format';
 
-const schema = z.object({ title: z.string().trim().min(3, 'Add a title'), body: z.string().trim().min(5, 'Write the announcement').max(1000, 'Keep it under 1000 characters'), pinned: z.boolean() });
+const schema = z.object({ title: z.string().trim().min(3, 'Add a title'), body: z.string().trim().min(5, 'Write the announcement').max(1000, 'Keep it under 1000 characters'), pinned: z.boolean(), emailApplicants: z.boolean() });
 
 export default function AdminAnnouncements() {
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({ queryKey: ['announcements'], queryFn: async () => (await api.get('/announcements')).data.items });
-  const { register, handleSubmit, reset, formState: { errors } } = useForm({ resolver: zodResolver(schema), defaultValues: { title: '', body: '', pinned: false } });
+  const { register, handleSubmit, reset, formState: { errors } } = useForm({ resolver: zodResolver(schema), defaultValues: { title: '', body: '', pinned: false, emailApplicants: false } });
   const create = useMutation({
     mutationFn: (v) => api.post('/announcements', v),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['announcements'] }); toast.success('Announcement published'); reset(); },
+    onSuccess: ({ data }) => {
+      qc.invalidateQueries({ queryKey: ['announcements'] });
+      toast.success(`Published. ${data.notified} applicant${data.notified === 1 ? '' : 's'} notified${data.emailed ? `, ${data.emailed} being emailed${data.emailSkipped ? ` (${data.emailSkipped} skipped: daily email limit)` : ''}` : ''}.`);
+      reset();
+    },
     onError: (e) => toast.error(parseError(e).message),
   });
   const remove = useMutation({
@@ -30,7 +34,7 @@ export default function AdminAnnouncements() {
 
   return (
     <div className="stack-lg">
-      <div className="page-head" style={{ marginBottom: 0 }}><div><h1 style={{ fontSize: 'var(--text-2xl)' }}>Announcements</h1><p>Shown on the public homepage and applicant dashboards.</p></div></div>
+      <div className="page-head" style={{ marginBottom: 0 }}><div><h1 style={{ fontSize: 'var(--text-2xl)' }}>Announcements</h1><p>Shown on the public homepage and applicant dashboards. Applicants also get a notification.</p></div></div>
       <div className="dash-grid">
         <section className="stack" aria-label="Published announcements">
           {isLoading && <Skeleton h={100} r={18} />}
@@ -48,6 +52,7 @@ export default function AdminAnnouncements() {
           <TextField label="Title" required error={errors.title?.message} {...register('title')} />
           <TextAreaField label="Message" required error={errors.body?.message} {...register('body')} />
           <label className="check"><input type="checkbox" {...register('pinned')} /> Pin to the top</label>
+          <label className="check"><input type="checkbox" {...register('emailApplicants')} /> Also email all applicants <span className="muted">(everyone gets an in-app notification anyway)</span></label>
           <Button type="submit" variant="primary" loading={create.isPending} icon={<Send size={16} />}>Publish</Button>
         </form>
       </div>

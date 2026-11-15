@@ -71,6 +71,10 @@ server/src
   config/ models/ middleware/ routes/ services/ utils/ seed.js
 ```
 
+## Notifications
+
+In-app notifications (and email when a provider is configured) are sent for status changes, document verification, password changes, new announcements (email is opt-in per announcement) and automatic reminders for approaching deadlines and missing documents. See *Automatic reminders* in `docs/DEPLOYMENT.md`.
+
 ## Known limitations
 
 - The payment step is a **simulation** (test transaction ids). Replace `POST /applications/:id/pay` with a

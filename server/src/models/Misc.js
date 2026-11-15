@@ -30,6 +30,16 @@ export const Announcement = mongoose.model(
   ),
 );
 
+// One row per reminder already sent. The unique key makes reminders idempotent and safe if two runs overlap.
+export const ReminderLog = mongoose.model(
+  'ReminderLog',
+  (() => {
+    const s = new Schema({ key: { type: String, required: true, unique: true }, createdAt: { type: Date, default: Date.now } });
+    s.index({ createdAt: 1 }, { expireAfterSeconds: 120 * 24 * 3600 }); // forget after 120 days
+    return s;
+  })(),
+);
+
 export const AuditLog = mongoose.model(
   'AuditLog',
   new Schema(
