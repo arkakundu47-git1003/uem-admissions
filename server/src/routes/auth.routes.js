@@ -1,6 +1,9 @@
 import { Router } from 'express';
 import jwt from 'jsonwebtoken';
-import { loginIpLimiter, loginEmailLimiter, registerLimiter } from '../middleware/rateLimits.js';
+import { loginIpLimiter, loginEmailLimiter, registerLimiter, forgotIpLimiter, forgotEmailLimiter, resetLimiter, changePasswordLimiter } from '../middleware/rateLimits.js';
+import { createResetLink, emailResetLink, findByResetToken } from '../services/passwordReset.js';
+import { sendEmail } from '../services/mailer.js';
+import { audit } from '../services/notify.js';
 import { z } from 'zod';
 import { env } from '../config/env.js';
 import { User } from '../models/User.js';
@@ -123,6 +126,72 @@ router.post(
     await User.updateOne({ _id: req.user._id }, { $inc: { tokenVersion: 1 } });
     res.clearCookie(COOKIE, { ...cookieOptions, maxAge: undefined });
     res.json({ message: 'Signed out of all devices' });
+  }),
+);
+
+/* ---------------- password management ---------------- */
+const forgotSchema = z.object({ email: z.string().trim().toLowerCase().email('Enter a valid email address') });
+const resetSchema = z.object({ token: z.string().min(32).max(128), password });
+const changeSchema = z
+  .object({ currentPassword: z.string().min(1, 'Enter your current password'), newPassword: password })
+  .refine((v) => v.currentPassword !== v.newPassword, { message: 'Choose a password different from the current one', path: ['newPassword'] });
+
+const FORGOT_REPLY = { message: 'If an account exists for that email, a reset link has been sent. It is valid for 30 minutes.' };
+
+// Always answers the same way so the form cannot be used to discover which emails are registered.
+router.post(
+  '/forgot-password',
+  forgotIpLimiter,
+  validate(forgotSchema),
+  forgotEmailLimiter,
+  asyncHandler(async (req, res) => {
+    const user = await User.findOne({ email: req.body.email });
+    if (user && user.isActive) {
+      const url = await createResetLink(user);
+      emailResetLink(user, url); // not awaited: response time must not reveal whether the account exists
+      audit(user, 'auth.forgot_password', 'User', user.id);
+    }
+    res.json(FORGOT_REPLY);
+  }),
+);
+
+router.post(
+  '/reset-password',
+  resetLimiter,
+  validate(resetSchema),
+  asyncHandler(async (req, res) => {
+    const user = await findByResetToken(req.body.token);
+    if (!user || !user.isActive) throw new ApiError(400, 'This reset link is invalid or has expired. Request a new one.');
+    user.password = req.body.password;
+    user.resetTokenHash = undefined;
+    user.resetTokenExpires = undefined;
+    user.tokenVersion += 1; // signs the account out everywhere
+    user.failedLogins = 0;
+    user.lockUntil = undefined;
+    await user.save();
+    res.clearCookie(COOKIE, { ...cookieOptions, maxAge: undefined });
+    audit(user, 'auth.reset_password', 'User', user.id);
+    sendEmail(user.email, 'Your UEM Admission Portal password was changed', `Hello ${user.name},\n\nYour password was just changed. If this was not you, reset it again immediately and contact the admissions office.`);
+    res.json({ message: 'Password updated. You can now sign in with your new password.' });
+  }),
+);
+
+router.post(
+  '/change-password',
+  protect,
+  changePasswordLimiter,
+  validate(changeSchema),
+  asyncHandler(async (req, res) => {
+    const user = await User.findById(req.user._id).select('+password +tokenVersion');
+    if (!(await user.verifyPassword(req.body.currentPassword))) {
+      throw new ApiError(400, 'Your current password is incorrect', { currentPassword: 'Incorrect password' });
+    }
+    user.password = req.body.newPassword;
+    user.tokenVersion += 1; // other devices must sign in again
+    await user.save();
+    audit(user, 'auth.change_password', 'User', user.id);
+    sendEmail(user.email, 'Your UEM Admission Portal password was changed', `Hello ${user.name},\n\nYour password was just changed. If this was not you, reset it immediately and contact the admissions office.`);
+    startSession(res, user, user.tokenVersion); // keep this device signed in
   }),
 );
 

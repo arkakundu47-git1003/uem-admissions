@@ -16,7 +16,7 @@ VPS or a college server.
 | `UPLOAD_DIR`, `MAX_UPLOAD_MB` | no | Default `./uploads`, `5` (UPLOAD_DIR is also the temporary area when `STORAGE_DRIVER=gridfs`) |
 | `STORAGE_DRIVER` | no | `local` (default) or `gridfs`. **Use `gridfs` on Render free**: files then live in MongoDB and survive restarts/redeploys |
 | `RATE_LIMIT_SCALE` | no | Default `1`. Multiplies every rate-limit ceiling (e.g. `5` on a staging service for load tests; leave at `1` in production) |
-| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM` | no | Enables real emails |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM` | no* | Enables real emails. *Required in practice for the "Forgot password?" flow: without it no reset link can be delivered (admins can still generate a link from Users → Reset password, which is shown on screen when email is off) |
 | `PORT` | no | Default `5000` (most hosts inject it) |
 
 ### Web app (`client/`)
@@ -74,6 +74,7 @@ back them up (see `DATABASE.md`).
 - [ ] Atlas network allow-list restricted; automated backups enabled
 - [ ] Uploads on persistent storage (`STORAGE_DRIVER=gridfs`, a volume, or S3) and backed up
 - [ ] SMTP configured and a test notification received
+- [ ] "Forgot password?" tested end to end (email arrives, link works once, old password stops working); `CLIENT_ORIGIN` starts with the real frontend URL because reset links are built from it
 - [ ] Payment gateway integrated (the bundled one is a simulation)
 - [ ] Uptime check on `/health`; error monitoring (e.g. Sentry) added
 - [ ] Load test against NFR-5 (100 concurrent users, 95% of requests under 3 s), e.g. `npx autocannon`

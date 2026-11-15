@@ -77,5 +77,6 @@ server/src
   Razorpay/Stripe order + signature verification before taking real money.
 - Uploaded documents default to local disk (`UPLOAD_DIR`), which is wiped on Render free restarts. Set
   `STORAGE_DRIVER=gridfs` to keep them in MongoDB (mind Atlas M0's 512 MB), or use a persistent volume / S3.
-- Email is sent only when `SMTP_*` variables are set; otherwise it is logged to the console.
+- Email is sent only when `SMTP_*` variables are set; otherwise it is logged to the console. Password reset by email therefore needs SMTP; with email off, an admin can generate a one-time reset link from *Users* and pass it on.
+- Password changes and resets revoke refresh sessions on all devices; an already-issued access token (15 min) can still work until it expires.
 - There is no automated test suite yet; see the verification notes in `docs/DEPLOYMENT.md`.
