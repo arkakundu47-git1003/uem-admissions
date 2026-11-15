@@ -29,6 +29,8 @@ export const env = {
   COOKIE_SAMESITE: process.env.COOKIE_SAMESITE || (isProd ? 'none' : 'lax'),
   UPLOAD_DIR: process.env.UPLOAD_DIR || './uploads',
   MAX_UPLOAD_MB: Number(process.env.MAX_UPLOAD_MB || 5),
+  RATE_LIMIT_SCALE: Number(process.env.RATE_LIMIT_SCALE || 1),
+  STORAGE_DRIVER: process.env.STORAGE_DRIVER || 'local', // 'local' | 'gridfs'
   SMTP_HOST: process.env.SMTP_HOST || '',
   SMTP_PORT: Number(process.env.SMTP_PORT || 587),
   SMTP_USER: process.env.SMTP_USER || '',

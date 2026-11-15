@@ -1,5 +1,4 @@
 import crypto from 'node:crypto';
-import path from 'node:path';
 import { Router } from 'express';
 import { z } from 'zod';
 import { Application } from '../models/Application.js';
@@ -7,7 +6,8 @@ import { Course } from '../models/Course.js';
 import { User } from '../models/User.js';
 import { protect, authorize } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
-import { upload, uploadRoot, hasValidSignature, removeFile } from '../middleware/upload.js';
+import { upload, hasValidSignature, removeFile } from '../middleware/upload.js';
+import { persistUpload, removeStored, streamDocument } from '../services/storage.js';
 import { ApiError, asyncHandler } from '../utils/http.js';
 import { DOC_TYPES } from '../constants.js';
 import { canViewApplication } from '../services/access.js';
@@ -52,12 +52,12 @@ const draftSchema = z.object({
     .optional(),
 });
 
-const req_ = (label) => z.string({ required_error: `${label} is required` }).trim().min(1, `${label} is required`);
-const completeSchema = z.object({
+const req_ = (label) => z.string({ error: `${label} is required` }).trim().min(1, `${label} is required`);
+export const completeSchema = z.object({
   personal: z.object({
     fullName: req_('Full name'),
-    dateOfBirth: z.coerce.date({ required_error: 'Date of birth is required', invalid_type_error: 'Date of birth is required' }),
-    gender: z.enum(['male', 'female', 'other'], { errorMap: () => ({ message: 'Select a gender' }) }),
+    dateOfBirth: z.coerce.date({ error: 'Date of birth is required' }),
+    gender: z.enum(['male', 'female', 'other'], { error: 'Select a gender' }),
     phone: req_('Phone'),
     address: req_('Address'),
     city: req_('City'),
@@ -69,8 +69,8 @@ const completeSchema = z.object({
   academic: z.object({
     board: req_('Board'),
     schoolName: req_('School / college'),
-    passingYear: z.coerce.number({ invalid_type_error: 'Passing year is required' }).int(),
-    percentage: z.coerce.number({ invalid_type_error: 'Percentage is required' }).min(0).max(100),
+    passingYear: z.coerce.number({ error: 'Passing year is required' }).int(),
+    percentage: z.coerce.number({ error: 'Percentage is required' }).min(0).max(100),
   }),
 });
 
@@ -165,6 +165,7 @@ router.post(
   asyncHandler(async (req, res) => {
     const app = req.application;
     const file = req.file;
+    let stored;
     try {
       if (!file) throw new ApiError(400, 'Choose a file to upload');
       const type = req.body.type;
@@ -180,22 +181,22 @@ router.post(
       if (app.status !== 'draft' && !reuploadAfterReview) {
         throw new ApiError(409, 'Documents can no longer be changed for this application');
       }
-      if (existing) {
-        removeFile(existing.filename);
-        app.documents.pull(existing._id);
-      }
+      stored = await persistUpload(file);
+      if (existing) app.documents.pull(existing._id);
       app.documents.push({
         type,
         originalName: file.originalname.slice(0, 120),
-        filename: file.filename,
+        ...stored,
         mimeType: file.mimetype,
         size: file.size,
       });
       if (app.status !== 'draft') stamp(app, app.status, `Re-uploaded ${DOC_TYPES[type]}`, req.user);
       await app.save();
+      if (existing) removeStored(existing); // only after the new record is safely saved
       res.status(201).json({ application: app });
     } catch (err) {
-      if (file) removeFile(file.filename);
+      if (stored) await removeStored(stored);
+      else if (file) removeFile(file.filename);
       throw err;
     }
   }),
@@ -210,9 +211,9 @@ router.delete(
     requireDraft(app);
     const doc = app.documents.id(req.params.docId);
     if (!doc) throw new ApiError(404, 'Document not found');
-    removeFile(doc.filename);
     app.documents.pull(doc._id);
     await app.save();
+    removeStored(doc);
     res.json({ application: app });
   }),
 );
@@ -225,9 +226,7 @@ router.get(
     if (!app || !(await canViewApplication(req.user, app))) throw new ApiError(404, 'Document not found');
     const doc = app.documents.id(req.params.docId);
     if (!doc) throw new ApiError(404, 'Document not found');
-    res.setHeader('Content-Type', doc.mimeType);
-    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(doc.originalName || 'document')}"`);
-    res.sendFile(path.join(uploadRoot, path.basename(doc.filename)));
+    streamDocument(doc, res);
   }),
 );
 

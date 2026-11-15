@@ -75,7 +75,7 @@ server/src
 
 - The payment step is a **simulation** (test transaction ids). Replace `POST /applications/:id/pay` with a
   Razorpay/Stripe order + signature verification before taking real money.
-- Uploaded documents are stored on local disk (`UPLOAD_DIR`). Use a persistent volume, or swap
-  `middleware/upload.js` for S3/Cloudinary, on hosts with ephemeral disks (Render free tier).
+- Uploaded documents default to local disk (`UPLOAD_DIR`), which is wiped on Render free restarts. Set
+  `STORAGE_DRIVER=gridfs` to keep them in MongoDB (mind Atlas M0's 512 MB), or use a persistent volume / S3.
 - Email is sent only when `SMTP_*` variables are set; otherwise it is logged to the console.
 - There is no automated test suite yet; see the verification notes in `docs/DEPLOYMENT.md`.
