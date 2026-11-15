@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Search, UserPlus, UserX, UserCheck } from 'lucide-react';
+import { Search, UserPlus, UserX, UserCheck, KeyRound } from 'lucide-react';
 import { api, parseError } from '../../lib/api';
 import { useAuth } from '../../hooks/useAuth';
 import { useDebounce } from '../../hooks/useDebounce';
@@ -49,6 +49,22 @@ function NewStaff({ open, onClose }) {
   );
 }
 
+function ResetLinkModal({ info, onClose }) {
+  return (
+    <Modal open={!!info} onClose={onClose} title="Password reset" description={info?.name}
+      footer={<Button variant="primary" onClick={onClose}>Done</Button>}>
+      {info?.emailed ? (
+        <p>A reset link was emailed to <strong>{info.email}</strong>. It is valid for 30 minutes and works once.</p>
+      ) : (
+        <div className="stack">
+          <p>Email is not configured, so nothing was sent. Give this link to <strong>{info?.email}</strong> through a trusted channel. It is valid for 30 minutes and works once:</p>
+          <TextField label="Reset link" readOnly value={info?.resetUrl || ''} onFocus={(e) => e.target.select()} />
+        </div>
+      )}
+    </Modal>
+  );
+}
+
 function Users() {
   const { user: me } = useAuth();
   const qc = useQueryClient();
@@ -56,11 +72,17 @@ function Users() {
   const [q, setQ] = useState('');
   const [page, setPage] = useState(1);
   const [adding, setAdding] = useState(false);
+  const [resetInfo, setResetInfo] = useState(null);
   const dq = useDebounce(q);
   const { data, isLoading, error, refetch } = useQuery({ queryKey: ['admin', 'users', { role, dq, page }], queryFn: async () => (await api.get('/admin/users', { params: { role: role || undefined, q: dq || undefined, page } })).data, placeholderData: (p) => p });
   const toggle = useMutation({
     mutationFn: (u) => api.patch(`/admin/users/${u._id}`, { isActive: !u.isActive }),
     onSuccess: (_, u) => { qc.invalidateQueries({ queryKey: ['admin', 'users'] }); toast.success(u.isActive ? 'Account deactivated' : 'Account reactivated'); },
+    onError: (e) => toast.error(parseError(e).message),
+  });
+  const sendReset = useMutation({
+    mutationFn: (u) => api.post(`/admin/users/${u._id}/reset-password`).then((r) => ({ ...r.data, name: u.name, email: u.email })),
+    onSuccess: setResetInfo,
     onError: (e) => toast.error(parseError(e).message),
   });
   const tabs = [{ value: '', label: 'All' }, { value: 'applicant', label: 'Applicants' }, { value: 'officer', label: 'Officers' }, { value: 'coordinator', label: 'Coordinators' }, { value: 'admin', label: 'Admins' }];
@@ -81,13 +103,14 @@ function Users() {
                 <td data-label="Joined">{formatDate(u.createdAt)}</td>
                 <td data-label="Last sign-in">{u.lastLoginAt ? formatDateTime(u.lastLoginAt) : '—'}</td>
                 <td data-label="Status"><Badge tone={u.isActive ? 'success' : 'neutral'}>{u.isActive ? 'Active' : 'Deactivated'}</Badge></td>
-                <td>{u._id !== me._id && <Button size="sm" variant={u.isActive ? 'ghost' : 'secondary'} icon={u.isActive ? <UserX size={15} /> : <UserCheck size={15} />} onClick={() => toggle.mutate(u)} aria-label={`${u.isActive ? 'Deactivate' : 'Reactivate'} ${u.name}`}>{u.isActive ? 'Deactivate' : 'Reactivate'}</Button>}</td>
+                <td>{u._id !== me._id && <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>{u.isActive && <Button size="sm" variant="ghost" icon={<KeyRound size={15} />} loading={sendReset.isPending && sendReset.variables?._id === u._id} onClick={() => sendReset.mutate(u)} aria-label={`Send password reset link to ${u.name}`}>Reset password</Button>}<Button size="sm" variant={u.isActive ? 'ghost' : 'secondary'} icon={u.isActive ? <UserX size={15} /> : <UserCheck size={15} />} onClick={() => toggle.mutate(u)} aria-label={`${u.isActive ? 'Deactivate' : 'Reactivate'} ${u.name}`}>{u.isActive ? 'Deactivate' : 'Reactivate'}</Button></div>}</td>
               </tr>))}</tbody>
           </table></div>
         )}
         {data && <Pagination page={data.page} pages={data.pages} total={data.total} onPage={setPage} noun="users" />}
       </div>
       <NewStaff open={adding} onClose={() => setAdding(false)} />
+      <ResetLinkModal info={resetInfo} onClose={() => setResetInfo(null)} />
     </div>
   );
 }

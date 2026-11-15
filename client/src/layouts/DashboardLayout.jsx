@@ -3,7 +3,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { Bell, BookOpen, ClipboardList, FileText, LayoutDashboard, LogOut, Megaphone, Menu, ShieldCheck, Users, Search, Globe } from 'lucide-react';
+import { UserCog, Bell, BookOpen, ClipboardList, FileText, LayoutDashboard, LogOut, Megaphone, Menu, ShieldCheck, Users, Search, Globe } from 'lucide-react';
 import { Brand, ThemeToggle } from './PublicLayout';
 import { Button } from '../components/ui/Button';
 import { NotificationBell, useNotifications } from '../components/shared/NotificationBell';
@@ -20,12 +20,14 @@ const NAV = {
     { to: '/applicant', label: 'Dashboard', icon: LayoutDashboard, end: true },
     { to: '/courses', label: 'Browse programmes', icon: BookOpen },
     { to: '/applicant/notifications', label: 'Notifications', icon: Bell, badge: true },
+    { to: '/applicant/account', label: 'Account', icon: UserCog },
   ],
   staff: [
     { section: 'Admissions' },
     { to: '/staff', label: 'Overview', icon: LayoutDashboard, end: true },
     { to: '/staff/applications', label: 'Applications', icon: ClipboardList },
     { to: '/staff/notifications', label: 'Notifications', icon: Bell, badge: true },
+    { to: '/staff/account', label: 'Account', icon: UserCog },
   ],
   admin: [
     { section: 'Administration' },

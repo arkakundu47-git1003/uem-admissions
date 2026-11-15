@@ -8,6 +8,8 @@ import { validate } from '../middleware/validate.js';
 import { ApiError, asyncHandler, escapeRegex, pageParams } from '../utils/http.js';
 import { courseScope } from '../services/access.js';
 import { audit } from '../services/notify.js';
+import { createResetLink, emailResetLink } from '../services/passwordReset.js';
+import { emailEnabled } from '../services/mailer.js';
 
 export const admin = Router();
 admin.use(protect, authorize('admin'));
@@ -67,6 +69,21 @@ admin.patch(
     if (req.body.isActive === false) await User.updateOne({ _id: user._id }, { $inc: { tokenVersion: 1 } });
     await audit(req.user, 'user.update', 'User', user.id, req.body);
     res.json({ user });
+  }),
+);
+
+// Admin sends a reset link to a user (they never see or choose the user's password).
+// If no mail server is configured the link is returned so the admin can pass it on securely.
+admin.post(
+  '/users/:id/reset-password',
+  asyncHandler(async (req, res) => {
+    const user = await User.findById(req.params.id);
+    if (!user) throw new ApiError(404, 'User not found');
+    if (!user.isActive) throw new ApiError(409, 'Reactivate this account before resetting its password');
+    const url = await createResetLink(user);
+    const emailed = await emailResetLink(user, url);
+    await audit(req.user, 'user.reset_password', 'User', user.id, { emailed });
+    res.json({ emailed, ...(emailEnabled() ? {} : { resetUrl: url }) });
   }),
 );
 

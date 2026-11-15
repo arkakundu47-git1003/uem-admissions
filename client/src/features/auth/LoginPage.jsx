@@ -45,6 +45,7 @@ export default function LoginPage() {
         {formError && <Alert tone="danger">{formError}</Alert>}
         <TextField label="Email" type="email" autoComplete="email" inputMode="email" required error={errors.email?.message} {...register('email')} />
         <PasswordField label="Password" autoComplete="current-password" required error={errors.password?.message} {...register('password')} />
+        <p style={{ textAlign: 'right', fontSize: 'var(--text-sm)', margin: 0 }}><Link to="/forgot-password">Forgot password?</Link></p>
         <Button type="submit" variant="primary" size="lg" block loading={isSubmitting} icon={<LogIn size={18} />}>Sign in</Button>
       </form>
     </AuthShell>

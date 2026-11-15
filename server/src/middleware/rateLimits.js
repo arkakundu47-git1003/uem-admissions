@@ -56,3 +56,27 @@ export const registerLimiter = rateLimit({
   keyGenerator: (req) => `ip:${req.ip}`,
   message: { message: 'Too many sign-ups from this network. Please try again in a few minutes.' },
 });
+
+// Forgot-password: do not let anyone mail-bomb an inbox or probe many addresses.
+export const forgotIpLimiter = rateLimit({
+  ...base,
+  limit: n(60),
+  keyGenerator: (req) => `ip:${req.ip}`,
+});
+export const forgotEmailLimiter = rateLimit({
+  ...base,
+  limit: n(5),
+  keyGenerator: (req) => `fe:${String(req.body?.email ?? '').trim().toLowerCase().slice(0, 254)}`,
+});
+export const resetLimiter = rateLimit({
+  ...base,
+  limit: n(30),
+  keyGenerator: (req) => `rs:${req.ip}`,
+});
+// Change-password: guessing the current password of a stolen session.
+export const changePasswordLimiter = rateLimit({
+  ...base,
+  limit: n(10),
+  skipSuccessfulRequests: true,
+  keyGenerator: apiKey,
+});

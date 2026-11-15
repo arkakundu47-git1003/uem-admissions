@@ -16,6 +16,8 @@ const userSchema = new mongoose.Schema(
     failedLogins: { type: Number, default: 0, select: false },
     lockUntil: { type: Date, select: false },
     lastLoginAt: { type: Date },
+    resetTokenHash: { type: String, select: false, index: true },
+    resetTokenExpires: { type: Date, select: false },
   },
   {
     timestamps: true,
@@ -25,6 +27,8 @@ const userSchema = new mongoose.Schema(
         delete ret.tokenVersion;
         delete ret.failedLogins;
         delete ret.lockUntil;
+        delete ret.resetTokenHash;
+        delete ret.resetTokenExpires;
         delete ret.__v;
         return ret;
       },
