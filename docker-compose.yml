@@ -1,5 +1,5 @@
 # One-command local/VPS stack:  docker compose up --build
-# Then seed demo data:           docker compose run --rm server node src/seed.js --force
+# Then seed demo data:           docker compose run --rm server node src/seed.js --reset=admission_portal --force
 services:
   mongo:
     image: mongo:7

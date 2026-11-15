@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { env } from './config/env.js';
 import { connectDB, disconnectDB } from './config/db.js';
 import { User } from './models/User.js';
@@ -43,11 +44,29 @@ const COURSES = [
     requiredDocuments: ['graduationMarksheet', 'idProof', 'photo', 'entranceScorecard'] },
 ];
 
+const args = process.argv.slice(2);
+const resetTarget = args.find((a) => a.startsWith('--reset='))?.slice('--reset='.length);
+
 async function main() {
-  if (env.isProd && process.argv[2] !== '--force') {
-    throw new Error('Refusing to wipe a production database. Re-run with --force if you really mean it.');
+  // These checks run BEFORE connecting, so a mistake can never reach the database.
+  if (!env.SEED_PASSWORD || env.SEED_PASSWORD.length < 12) {
+    throw new Error('Set SEED_PASSWORD (12+ characters) in server/.env first. There is intentionally no default password.');
   }
+  if (!resetTarget) {
+    throw new Error('This script WIPES the entire database. Run: npm run seed -- --reset=<database name>');
+  }
+  if (env.isProd && !args.includes('--force')) {
+    throw new Error('NODE_ENV=production: also pass --force if you really mean to wipe a production database.');
+  }
+
   await connectDB();
+  const dbName = mongoose.connection.name;
+  if (resetTarget !== dbName) {
+    throw new Error(`--reset=${resetTarget} does not match the connected database "${dbName}". Nothing was changed.`);
+  }
+  const [users, applications] = await Promise.all([User.countDocuments(), Application.countDocuments()]);
+  console.log(`About to WIPE "${dbName}" (${users} users, ${applications} applications). Press Ctrl+C within 5 seconds to cancel.`);
+  await new Promise((resolve) => setTimeout(resolve, 5000));
   await Promise.all([User, Course, Application, Notification, Announcement, AuditLog].map((m) => m.deleteMany({})));
   await Promise.all([User, Course, Application, Notification, Announcement, AuditLog].map((m) => m.syncIndexes()));
 
@@ -74,7 +93,7 @@ async function main() {
 
   // A submitted, partially reviewed application (Priya → CSE)
   const a1 = await Application.create({
-    applicationNo: 'IEM-2026-A1B2C3', applicant: priya._id, course: byCode['CSE-BT']._id, status: 'under_review', step: 4,
+    applicationNo: 'UEM-2026-A1B2C3', applicant: priya._id, course: byCode['CSE-BT']._id, status: 'under_review', step: 4,
     personal: personal(priya), academic: { board: 'CBSE', schoolName: 'Delhi Public School', passingYear: 2025, percentage: 91.4, entranceExam: 'WBJEE', entranceScore: 412 },
     statement: 'I have built several machine-learning side projects and want to study CS in a rigorous environment.',
     documents: docs(byCode['CSE-BT'], 'verified').map((d, i) => (i === 4 ? { ...d, status: 'rejected', remark: 'Scorecard is cropped; upload the full page.' } : d)),
@@ -89,7 +108,7 @@ async function main() {
 
   // Accepted application (Rahul → IT)
   await Application.create({
-    applicationNo: 'IEM-2026-D4E5F6', applicant: rahul._id, course: byCode['IT-BT']._id, status: 'accepted', step: 4,
+    applicationNo: 'UEM-2026-D4E5F6', applicant: rahul._id, course: byCode['IT-BT']._id, status: 'accepted', step: 4,
     personal: personal(rahul, { gender: 'male' }), academic: { board: 'ISC', schoolName: 'St. Xavier’s Collegiate School', passingYear: 2025, percentage: 88 },
     statement: 'Cloud infrastructure fascinates me.', documents: docs(byCode['IT-BT'], 'verified'),
     payment: { status: 'paid', amount: 1000, method: 'card', transactionId: 'TEST-SEED0002', paidAt: inDays(-12) },
@@ -105,7 +124,7 @@ async function main() {
 
   // A draft (Rahul → MBA would need grad docs; use BBA)
   await Application.create({
-    applicationNo: 'IEM-2026-G7H8I9', applicant: rahul._id, course: byCode.BBA._id, status: 'draft', step: 1,
+    applicationNo: 'UEM-2026-G7H8I9', applicant: rahul._id, course: byCode.BBA._id, status: 'draft', step: 1,
     personal: personal(rahul, { gender: 'male' }), payment: { status: 'unpaid', amount: 600 },
     history: [{ status: 'draft', note: 'Application started', byName: rahul.name }],
   });
@@ -122,7 +141,7 @@ async function main() {
     { title: 'Mechanical Engineering deadline approaching', body: 'The application window for B.Tech Mechanical closes in five days.', createdBy: adminUser._id },
   ]);
 
-  console.log('\nSeed complete. Demo accounts (password: %s)', pw);
+  console.log('\nSeed complete. Demo accounts (password = the SEED_PASSWORD you set):');
   console.log('  admin@iem.test        – Administrator');
   console.log('  officer@iem.test      – Admission Officer');
   console.log('  coordinator@iem.test  – Coordinator (Computer Science)');

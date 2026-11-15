@@ -6,11 +6,14 @@ import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../hooks/useTheme';
 import { homeFor } from '../lib/constants';
 
+const CONTACT_EMAIL = import.meta.env.VITE_CONTACT_EMAIL;
+const CONTACT_PHONE = import.meta.env.VITE_CONTACT_PHONE;
+
 export function Brand({ to = '/' }) {
   return (
-    <Link to={to} className="brand" aria-label="IEM Admission Portal home">
+    <Link to={to} className="brand" aria-label="UEM Admission Portal home">
       <span className="brand-mark"><GraduationCap size={22} aria-hidden="true" /></span>
-      <span className="brand-name"><strong>IEM Admissions</strong><small>Kolkata</small></span>
+      <span className="brand-name"><strong>UEM Admissions</strong><small>Kolkata</small></span>
     </Link>
   );
 }
@@ -74,15 +77,15 @@ export default function PublicLayout() {
           <div>
             <div className="brand" style={{ color: '#fff', marginBottom: 12 }}>
               <span className="brand-mark"><GraduationCap size={22} aria-hidden="true" /></span>
-              <span className="brand-name"><strong>IEM Admissions</strong><small style={{ color: '#9fb0d8' }}>Salt Lake, Kolkata</small></span>
+              <span className="brand-name"><strong>UEM Admissions</strong><small style={{ color: '#9fb0d8' }}>Kolkata</small></span>
             </div>
             <p style={{ maxWidth: '38ch', fontSize: 'var(--text-sm)' }}>A single, secure place to explore programmes, apply, upload documents and follow your admission decision.</p>
           </div>
           <div><h4>Explore</h4><ul><li><Link to="/courses">All programmes</Link></li><li><Link to="/register">Create account</Link></li><li><Link to="/login">Sign in</Link></li></ul></div>
-          <div><h4>Support</h4><ul><li>admissions@iem.edu</li><li>+91 33 0000 0000</li><li>Mon–Sat, 9am–6pm IST</li></ul></div>
+          <div><h4>Support</h4><ul>{CONTACT_EMAIL && <li><a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a></li>}{CONTACT_PHONE && <li>{CONTACT_PHONE}</li>}<li>Mon–Sat, 9am–6pm IST</li></ul></div>
           <div><h4>Portal</h4><ul><li>Secure, encrypted sessions</li><li>WCAG 2.1 AA accessible</li><li>Your data stays private</li></ul></div>
         </div>
-        <div className="container footer-bottom">© {new Date().getFullYear()} Institute of Engineering &amp; Management. Demonstration system — uses simulated admission data.</div>
+        <div className="container footer-bottom">© {new Date().getFullYear()} UEM Admission Portal. Demonstration system — uses simulated admission data.</div>
       </footer>
     </>
   );

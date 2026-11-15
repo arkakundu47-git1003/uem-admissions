@@ -16,10 +16,10 @@ export function AuthShell({ title, subtitle, children, footer }) {
       <aside className="auth-aside" aria-hidden="false">
         <div className="brand" style={{ color: '#fff' }}>
           <span className="brand-mark"><GraduationCap size={22} aria-hidden="true" /></span>
-          <span className="brand-name"><strong>IEM Admissions</strong><small style={{ color: '#9fb0d8' }}>Kolkata</small></span>
+          <span className="brand-name"><strong>UEM Admissions</strong><small style={{ color: '#9fb0d8' }}>Kolkata</small></span>
         </div>
         <div style={{ position: 'relative', zIndex: 1 }}>
-          <h2>Begin your journey at IEM.</h2>
+          <h2>Begin your journey at UEM.</h2>
           <p>Apply to leading engineering and management programmes with a portal built to be fast, clear and secure.</p>
           <ul>
             {POINTS.map((p, i) => (
@@ -29,7 +29,7 @@ export function AuthShell({ title, subtitle, children, footer }) {
             ))}
           </ul>
         </div>
-        <small style={{ color: '#9fb0d8', position: 'relative', zIndex: 1 }}>© {new Date().getFullYear()} Institute of Engineering &amp; Management</small>
+        <small style={{ color: '#9fb0d8', position: 'relative', zIndex: 1 }}>© {new Date().getFullYear()} UEM Admission Portal</small>
       </aside>
 
       <div className="auth-main">

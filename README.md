@@ -1,4 +1,4 @@
-# IEM Admission Portal (MERN)
+# UEM Admission Portal (MERN)
 
 A role-based university admission portal: applicants register, browse programmes, complete an autosaving
 application, upload documents, pay a (simulated) fee and track their decision; officers and coordinators review
@@ -30,9 +30,9 @@ Roles: **applicant**, **officer**, **coordinator** (scoped to their department),
 ```bash
 # 1. API
 cd server
-cp .env.example .env          # defaults work for local development
+cp .env.example .env          # then set SEED_PASSWORD (12+ chars) and a LOCAL database in MONGODB_URI
 npm install
-npm run seed                  # needs MongoDB on localhost:27017 (or set MONGODB_URI)
+npm run seed -- --reset=<database name>   # WIPES that database; name must match MONGODB_URI
 npm run dev                   # http://localhost:5000
 
 # 2. Web app (new terminal)
@@ -41,22 +41,15 @@ npm install
 npm run dev                   # http://localhost:5173  (proxies /api to :5000)
 ```
 
-Demo accounts created by the seed (password `Portal@12345`, change `SEED_PASSWORD` to override):
-
-| Role | Email |
-|---|---|
-| Admin | admin@iem.test |
-| Admission officer | officer@iem.test |
-| Coordinator (Computer Science) | coordinator@iem.test |
-| Applicant (application under review) | priya@student.test |
-| Applicant (accepted + a draft) | rahul@student.test |
+The seed creates demo staff and applicant accounts (`admin@`, `officer@`, `coordinator@iem.test`, `priya@` and `rahul@student.test`)
+protected by the `SEED_PASSWORD` you choose. **Never seed a live database**, and delete or deactivate demo accounts before launch.
 
 ## One-command stack with Docker
 
 ```bash
 cp .env.example .env          # fill in two 32+ character secrets (command inside the file)
 docker compose up --build -d
-docker compose run --rm server node src/seed.js --force
+docker compose run --rm server node src/seed.js --reset=admission_portal --force   # fresh stack only
 # open http://localhost:8080
 ```
 

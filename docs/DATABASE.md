@@ -44,9 +44,9 @@ every required document to be verified and a free seat.
 
 ```bash
 # Atlas: set MONGODB_URI in server/.env, then
-cd server && npm run seed        # WIPES all collections, loads demo programmes, users and applications
+cd server && npm run seed -- --reset=<database name>   # WIPES all collections, loads demo programmes, users and applications
 ```
-The seed refuses to run when `NODE_ENV=production` unless `--force` is given.
+The seed needs `SEED_PASSWORD` (12+ characters, no default), `--reset=<name>` matching the connected database, and, when `NODE_ENV=production`, `--force`. It waits 5 seconds before wiping so you can cancel. Never run it against a live database.
 
 Create additional staff from the admin console (Users → New staff account), not by seeding.
 

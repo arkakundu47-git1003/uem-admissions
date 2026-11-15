@@ -32,8 +32,8 @@ VPS or a college server.
    Render's free disk is ephemeral: attach a persistent disk mounted at `/app/uploads` (set `UPLOAD_DIR`
    to it) or move uploads to S3/Cloudinary.
 3. **Seed once** (Render shell, or locally with the production URI):
-   `node src/seed.js --force` – this **wipes** the database, so run it only on a fresh one.
-   For real use, create the first admin by seeding, then change its password and deactivate demo accounts.
+   `node src/seed.js --reset=<database name> --force` (with `SEED_PASSWORD` set) – this **wipes** the database, so run it only on a brand-new one.
+   Immediately create your own admin in the admin console and deactivate or delete every demo account.
 4. **Web on Vercel.** Import the repo, root directory `client`, framework Vite (build `npm run build`, output
    `dist`). To keep everything same-origin (best for cookies, especially Safari), add this rewrite **above**
    the existing SPA rule in `client/vercel.json` and leave `VITE_API_URL` empty:
@@ -51,7 +51,7 @@ VPS or a college server.
 git clone <repo> && cd admission-portal
 cp .env.example .env     # set JWT secrets (and SEED_PASSWORD)
 docker compose up --build -d
-docker compose run --rm server node src/seed.js --force   # first run only
+docker compose run --rm server node src/seed.js --reset=admission_portal --force   # first run only
 ```
 
 The stack serves the app on port 8080 (nginx → API). For public use put a TLS terminator in front
