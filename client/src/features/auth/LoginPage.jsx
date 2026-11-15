@@ -18,20 +18,13 @@ const schema = z.object({
   password: z.string().min(1, 'Enter your password'),
 });
 
-const DEMO = [
-  ['Applicant', 'priya@student.test'],
-  ['Officer', 'officer@iem.test'],
-  ['Coordinator', 'coordinator@iem.test'],
-  ['Admin', 'admin@iem.test'],
-];
-const showDemo = import.meta.env.DEV || import.meta.env.VITE_SHOW_DEMO === 'true';
 
 export default function LoginPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
   const [formError, setFormError] = useState('');
-  const { register, handleSubmit, setValue, setFocus, formState: { errors, isSubmitting } } = useForm({ resolver: zodResolver(schema), defaultValues: { email: '', password: '' } });
+  const { register, handleSubmit, setFocus, formState: { errors, isSubmitting } } = useForm({ resolver: zodResolver(schema), defaultValues: { email: '', password: '' } });
 
   const onSubmit = async (values) => {
     setFormError('');
@@ -54,14 +47,6 @@ export default function LoginPage() {
         <PasswordField label="Password" autoComplete="current-password" required error={errors.password?.message} {...register('password')} />
         <Button type="submit" variant="primary" size="lg" block loading={isSubmitting} icon={<LogIn size={18} />}>Sign in</Button>
       </form>
-      {showDemo && (
-        <div className="demo-box">
-          <strong>Demo accounts</strong> (password <code>Portal@12345</code>) — fill in as:{' '}
-          {DEMO.map(([label, email], i) => (
-            <span key={email}><button type="button" onClick={() => { setValue('email', email); setValue('password', 'Portal@12345'); }}>{label}</button>{i < DEMO.length - 1 ? ' · ' : ''}</span>
-          ))}
-        </div>
-      )}
     </AuthShell>
   );
 }

@@ -75,7 +75,7 @@ const completeSchema = z.object({
 });
 
 /* ---------- helpers ---------- */
-const genNumber = () => `IEM-${new Date().getFullYear()}-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
+const genNumber = () => `UEM-${new Date().getFullYear()}-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
 const populate = (q) => q.populate('course').populate('applicant', 'name email phone');
 const stamp = (app, status, note, user) =>
   app.history.push({ status, note, by: user._id, byName: user.name, at: new Date() });

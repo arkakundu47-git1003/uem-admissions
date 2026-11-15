@@ -33,8 +33,7 @@ export const env = {
   SMTP_PORT: Number(process.env.SMTP_PORT || 587),
   SMTP_USER: process.env.SMTP_USER || '',
   SMTP_PASS: process.env.SMTP_PASS || '',
-  MAIL_FROM: process.env.MAIL_FROM || 'IEM Admissions <admissions@example.edu>',
-  SEED_PASSWORD: isProd
-  ? (process.env.SEED_PASSWORD || '')
-  : (process.env.SEED_PASSWORD || 'Portal@12345'),
+  MAIL_FROM: process.env.MAIL_FROM || 'UEM Admissions <admissions@example.edu>',
+  // No default on purpose: a default password in public source code is a published credential.
+  SEED_PASSWORD: process.env.SEED_PASSWORD || '',
 };
