@@ -60,10 +60,13 @@ router.post(
   registerLimiter,
   validate(registerSchema),
   asyncHandler(async (req, res) => {
-    if (await User.exists({ email: req.body.email })) {
+    let user;
+    try {
+      user = await User.create({ ...req.body, role: 'applicant' });
+    } catch (err) {
+      if (err?.code !== 11000) throw err;
       throw new ApiError(409, 'An account with this email already exists', { email: 'This email is already registered' });
     }
-    const user = await User.create({ ...req.body, role: 'applicant' });
     startSession(res, user, 0, 201);
   }),
 );

@@ -77,6 +77,10 @@ export const completeSchema = z.object({
 /* ---------- helpers ---------- */
 const genNumber = () => `UEM-${new Date().getFullYear()}-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
 const populate = (q) => q.populate('course').populate('applicant', 'name email phone');
+const populateCreated = (app) => app.populate([
+  { path: 'course' },
+  { path: 'applicant', select: 'name email phone' },
+]);
 const stamp = (app, status, note, user) =>
   app.history.push({ status, note, by: user._id, byName: user.name, at: new Date() });
 
@@ -115,7 +119,8 @@ router.post(
       payment: { status: course.applicationFee > 0 ? 'unpaid' : 'not_required', amount: course.applicationFee },
       history: [{ status: 'draft', note: 'Application started', by: req.user._id, byName: req.user.name }],
     });
-    res.status(201).json({ application: await populate(Application.findById(application._id)) });
+    await populateCreated(application);
+    res.status(201).json({ application });
   }),
 );
 
@@ -142,17 +147,38 @@ router.get(
 router.put(
   '/:id',
   authorize('applicant'),
-  loadOwn,
   validate(draftSchema),
   asyncHandler(async (req, res) => {
-    const app = req.application;
-    requireDraft(app);
     const { personal, academic, statement, step } = req.body;
-    if (personal) Object.assign(app.personal, personal);
-    if (academic) Object.assign(app.academic, academic);
-    if (statement !== undefined) app.statement = statement;
-    if (step !== undefined) app.step = Math.max(app.step, step);
-    await app.save();
+    const set = {};
+    const unset = {};
+    for (const [section, fields] of Object.entries({ personal, academic })) {
+      if (!fields) continue;
+      for (const [field, value] of Object.entries(fields)) {
+        const path = `${section}.${field}`;
+        if (value === undefined) unset[path] = 1;
+        else set[path] = value;
+      }
+    }
+    if (statement !== undefined) set.statement = statement;
+
+    const update = {};
+    if (Object.keys(set).length) update.$set = set;
+    if (Object.keys(unset).length) update.$unset = unset;
+    if (step !== undefined) update.$max = { step };
+
+    let app = await Application.findOneAndUpdate(
+      { _id: req.params.id, applicant: req.user._id, status: 'draft' },
+      update,
+      { new: true, runValidators: true },
+    ).populate('course');
+
+    if (!app) {
+      const owned = await Application.findOne({ _id: req.params.id, applicant: req.user._id }).select('status');
+      if (!owned) throw new ApiError(404, 'Application not found');
+      requireDraft(owned);
+      throw new ApiError(409, 'This application changed while it was being saved. Please try again.');
+    }
     res.json({ application: app, savedAt: new Date() });
   }),
 );

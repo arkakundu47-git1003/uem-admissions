@@ -9,13 +9,21 @@ import { env } from '../config/env.js';
 const scale = Number.isFinite(env.RATE_LIMIT_SCALE) && env.RATE_LIMIT_SCALE > 0 ? env.RATE_LIMIT_SCALE : 1;
 const WINDOW = 15 * 60 * 1000;
 const n = (v) => Math.max(1, Math.round(v * scale));
+const verifiedUserIds = new WeakMap();
 
 export function bearerUserId(req) {
+  if (verifiedUserIds.has(req)) return verifiedUserIds.get(req);
   const h = req.headers?.authorization;
-  if (!h || !h.startsWith('Bearer ')) return null;
+  if (!h || !h.startsWith('Bearer ')) {
+    verifiedUserIds.set(req, null);
+    return null;
+  }
   try {
-    return jwt.verify(h.slice(7), env.JWT_ACCESS_SECRET).sub || null; // signature checked: cannot be spoofed
+    const userId = jwt.verify(h.slice(7), env.JWT_ACCESS_SECRET).sub || null; // signature checked: cannot be spoofed
+    verifiedUserIds.set(req, userId);
+    return userId;
   } catch {
+    verifiedUserIds.set(req, null);
     return null;
   }
 }

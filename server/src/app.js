@@ -9,10 +9,11 @@ import { env } from './config/env.js';
 import routes from './routes/index.js';
 import { errorHandler, notFound } from './middleware/error.js';
 
-export function createApp() {
+export function createApp({ performanceMiddleware } = {}) {
   const app = express();
   app.set('trust proxy', 1); // behind Render / Railway / nginx
 
+  if (performanceMiddleware) app.use(performanceMiddleware);
   app.use(helmet());
   const origins = env.CLIENT_ORIGIN.split(',').map((s) => s.trim());
   app.use(

@@ -41,8 +41,10 @@ router.get(
       filter.isOpen = true;
       filter.deadline = { $gt: new Date() };
     }
-    const courses = await Course.find(filter).sort({ deadline: 1, name: 1 });
-    const departments = await Course.distinct('department');
+    const [courses, departments] = await Promise.all([
+      Course.find(filter).sort({ deadline: 1, name: 1 }),
+      Course.distinct('department'),
+    ]);
     res.json({ courses, departments: departments.sort() });
   }),
 );
