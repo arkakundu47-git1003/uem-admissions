@@ -6,6 +6,7 @@
 |---|---|---|
 | `server/tests/api.test.js` | Registration, login, role access, eligibility and review workflow | No (starts its own in-memory MongoDB; the first run downloads it) |
 | `validation`, `ratelimit`, `mailer`, `globalSetup` | Input messages, rate limits, email providers, the test safety guard | No |
+| `security`, `workflow` | Token attacks, role and department access, other-applicant data (IDOR), mass assignment, uploads, headers/CORS; every status transition, seat limits, document review, submission rules | **Yes** (`TEST_MONGODB_URI`) |
 | `passwords`, `emailflow`, `reminders`, `export`, `storage`, `backup` | Password reset, reminders, CSV export, document storage, encrypted backup/restore | **Yes** (`TEST_MONGODB_URI`) |
 
 Without `TEST_MONGODB_URI` the database tests **skip themselves**, so a green `npm test` on its own does not mean everything ran.
