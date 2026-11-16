@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ClipboardCheck, Search } from 'lucide-react';
+import { ClipboardCheck, Download, Search } from 'lucide-react';
+import { toast } from 'sonner';
+import { downloadFile } from '../../lib/download';
 import { api } from '../../lib/api';
 import { useDebounce } from '../../hooks/useDebounce';
 import { Button } from '../../components/ui/Button';
@@ -24,7 +26,14 @@ export default function ReviewQueue() {
   const [sort, setSort] = useState('oldest');
   const [page, setPage] = useState(1);
   const dq = useDebounce(q);
+  const [exporting, setExporting] = useState(false);
   const reset = (fn) => (v) => { fn(v); setPage(1); };
+  const exportCsv = async () => {
+    setExporting(true);
+    try { await downloadFile('/reports/applications.csv', { status: status || undefined, q: dq || undefined, course: course || undefined }, 'applications.csv'); toast.success('Export downloaded'); }
+    catch (e) { toast.error(e.message); }
+    finally { setExporting(false); }
+  };
 
   const courses = useQuery({ queryKey: ['courses', 'all'], queryFn: async () => (await api.get('/courses')).data.courses, staleTime: 300_000 });
   const { data, isLoading, isFetching, error, refetch } = useQuery({
@@ -35,7 +44,8 @@ export default function ReviewQueue() {
 
   return (
     <div className="stack-lg">
-      <div className="page-head" style={{ marginBottom: 0 }}><div><h1 style={{ fontSize: 'var(--text-2xl)' }}>Review queue</h1><p>Verify documents and decide on applications.</p></div></div>
+      <div className="page-head" style={{ marginBottom: 0 }}><div><h1 style={{ fontSize: 'var(--text-2xl)' }}>Review queue</h1><p>Verify documents and decide on applications.</p></div>
+        <Button variant="secondary" onClick={exportCsv} loading={exporting} icon={<Download size={17} />} aria-label="Export the applications matching the current filters as CSV">Export CSV</Button></div>
 
       <FilterTabs label="Filter by status" tabs={TABS} value={status} onChange={reset(setStatus)} />
 

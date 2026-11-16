@@ -7,6 +7,7 @@ import { ApiError, asyncHandler, escapeRegex, pageParams } from '../utils/http.j
 import { DOC_TYPES, STATUSES, TRANSITIONS } from '../constants.js';
 import { canViewApplication, courseScope } from '../services/access.js';
 import { audit, notify } from '../services/notify.js';
+import { buildReviewFilter } from '../services/applicationFilter.js';
 
 const router = Router();
 router.use(protect, authorize('officer', 'coordinator', 'admin'));
@@ -15,17 +16,7 @@ router.get(
   '/applications',
   asyncHandler(async (req, res) => {
     const { page, limit, skip } = pageParams(req.query);
-    const filter = { status: { $ne: 'draft' } };
-    if (STATUSES.includes(req.query.status) && req.query.status !== 'draft') filter.status = req.query.status;
-    const scope = await courseScope(req.user);
-    if (scope) filter.course = scope;
-    if (req.query.course && /^[a-f\d]{24}$/i.test(req.query.course)) {
-      filter.course = scope ? { $in: scope.$in.filter((id) => String(id) === req.query.course) } : req.query.course;
-    }
-    if (req.query.q) {
-      const rx = new RegExp(escapeRegex(String(req.query.q).slice(0, 60)), 'i');
-      filter.$or = [{ applicationNo: rx }, { 'personal.fullName': rx }];
-    }
+    const filter = await buildReviewFilter(req.user, req.query);
     const sort = req.query.sort === 'oldest' ? { submittedAt: 1 } : { submittedAt: -1 };
 
     const [items, total] = await Promise.all([

@@ -17,6 +17,7 @@ VPS or a college server.
 | `STORAGE_DRIVER` | no | `local` (default) or `gridfs`. **Use `gridfs` on Render free**: files then live in MongoDB and survive restarts/redeploys |
 | `CRON_SECRET` | for reminders | 24+ random characters (`node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"`). Lets the daily scheduler call `/api/v1/internal/run-reminders`. Empty = endpoint disabled (404) |
 | `REMINDER_MAX_PER_RUN`, `ANNOUNCEMENT_EMAIL_MAX` | no | Default `150` each. Caps emails per reminder run / per announcement so a free email plan's daily limit (Brevo: 300/day) is not exhausted; password-reset emails need headroom |
+| `EXPORT_MAX_ROWS` | no | Default `10000`. Largest CSV export allowed; bigger requests get a clear "narrow your filters" message |
 | `RATE_LIMIT_SCALE` | no | Default `1`. Multiplies every rate-limit ceiling (e.g. `5` on a staging service for load tests; leave at `1` in production) |
 | `RESEND_API_KEY` | for email on Render | Resend API key (starts `re_`). Sends over HTTPS, which works on Render free. Needs a verified domain to email anyone but yourself |
 | `BREVO_API_KEY` | alternative | Brevo API key (v3). HTTPS; needs only a verified *sender address*, no domain |

@@ -47,6 +47,7 @@ export const env = {
   CRON_SECRET: process.env.CRON_SECRET || '',
   REMINDER_MAX_PER_RUN: Number(process.env.REMINDER_MAX_PER_RUN || 150),
   ANNOUNCEMENT_EMAIL_MAX: Number(process.env.ANNOUNCEMENT_EMAIL_MAX || 150), // free email plans cap daily sends (Brevo: 300/day)
+  EXPORT_MAX_ROWS: Number(process.env.EXPORT_MAX_ROWS || 10000),
   MAIL_FROM: process.env.MAIL_FROM || 'UEM Admissions <admissions@example.edu>',
   // No default on purpose: a default password in public source code is a published credential.
   SEED_PASSWORD: process.env.SEED_PASSWORD || '',
