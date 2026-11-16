@@ -12,6 +12,8 @@
   "restore": "node scripts/restore.js",
   "dev": "node --watch src/server.js",
   "start": "node src/server.js",
+  "loadtest": "node loadtest/loadtest.js",
+  "loadtest:cleanup": "node loadtest/cleanup.js",
   "test": "vitest run"
 },
   "engines": {

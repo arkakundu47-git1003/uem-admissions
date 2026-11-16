@@ -138,7 +138,7 @@ cluster can hold both. The API prints a warning at startup if production is conn
 - [ ] "Forgot password?" tested end to end (email arrives, link works once, old password stops working); `CLIENT_ORIGIN` starts with the real frontend URL because reset links are built from it
 - [ ] Payment gateway integrated (the bundled one is a simulation)
 - [ ] Uptime check on `/health`; error monitoring (e.g. Sentry) added
-- [ ] Load test against NFR-5 (100 concurrent users, 95% of requests under 3 s), e.g. `npx autocannon`
+- [ ] Load test against NFR-1 and NFR-5 (100 concurrent users, 95% of requests under 3 s): follow `docs/LOADTEST.md`
 
 ## What was and wasn't verified
 
