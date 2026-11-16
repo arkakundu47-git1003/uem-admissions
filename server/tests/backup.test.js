@@ -37,8 +37,8 @@ describe.skipIf(!URI)('backup and restore', () => {
 
   beforeAll(async () => {
     client = await mongoose.createConnection(URI).asPromise();
-    src = client.useDb('bak_src', { useCache: false }).db;
-    dst = client.useDb('bak_dst', { useCache: false }).db;
+    src = client.useDb('admission_portal_test_bak_src', { useCache: false }).db;
+    dst = client.useDb('admission_portal_test_bak_dst', { useCache: false }).db;
     await src.dropDatabase(); await dst.dropDatabase();
     await src.collection('users').insertMany([
       { _id: id1, name: 'Ünïcode ₹ Name', email: SECRET_EMAIL, role: 'applicant', tokenVersion: 3, createdAt: new Date('2026-11-01T10:20:30.456Z'), nested: { score: 87.5, list: [1, 2, { x: null }] } },
@@ -48,7 +48,7 @@ describe.skipIf(!URI)('backup and restore', () => {
     await src.collection('empty_one').insertOne({ a: 1 }); await src.collection('empty_one').deleteMany({});
     const bucket = new mongoose.mongo.GridFSBucket(src, { bucketName: 'documents' });
     await new Promise((res, rej) => { const u = bucket.openUploadStream('scan.pdf'); u.on('error', rej).on('finish', res); u.end(bytes); });
-    file = path.join(tmp, backupFileName('bak_src'));
+    file = path.join(tmp, backupFileName('admission_portal_test_bak_src'));
   });
   afterAll(async () => { await src.dropDatabase(); await dst.dropDatabase(); await client.close(); });
 
@@ -60,7 +60,7 @@ describe.skipIf(!URI)('backup and restore', () => {
     expect(r.sha256).toMatch(/^[0-9a-f]{64}$/);
     expect(fs.existsSync(`${file}.partial`)).toBe(false);
     const v = await verifyBackup(file, PASS);
-    expect(v).toMatchObject({ db: 'bak_src', total: 2 + 1 + 3 });
+    expect(v).toMatchObject({ db: 'admission_portal_test_bak_src', total: 2 + 1 + 3 });
   });
 
   it('is actually encrypted: no readable data and not even a gzip signature', () => {
@@ -94,13 +94,13 @@ describe.skipIf(!URI)('backup and restore', () => {
   it('restore: requires the exact database name, and refuses unauthenticated backups before writing anything', async () => {
     await expect(restoreBackup(dst, file, PASS, { into: 'something_else' })).rejects.toThrow(/Confirmation mismatch/);
     await expect(restoreBackup(dst, file, PASS, {})).rejects.toThrow(/Confirmation mismatch/);
-    await expect(restoreBackup(dst, file, 'a completely different passphrase!', { into: 'bak_dst' })).rejects.toThrow(BackupError);
+    await expect(restoreBackup(dst, file, 'a completely different passphrase!', { into: 'admission_portal_test_bak_dst' })).rejects.toThrow(BackupError);
     expect(await dst.listCollections().toArray()).toHaveLength(0);
   });
 
   it('restores everything exactly (types, unicode, indexes, GridFS bytes) into an empty database', async () => {
     const warnings = [];
-    const r = await restoreBackup(dst, file, PASS, { into: 'bak_dst', onWarning: (m) => warnings.push(m) });
+    const r = await restoreBackup(dst, file, PASS, { into: 'admission_portal_test_bak_dst', onWarning: (m) => warnings.push(m) });
     expect(r.restored).toMatchObject({ users: 2, 'documents.files': 1, 'documents.chunks': 3 });
     const u = await dst.collection('users').findOne({ _id: id1 });
     expect(u._id).toBeInstanceOf(mongoose.Types.ObjectId);
@@ -120,9 +120,9 @@ describe.skipIf(!URI)('backup and restore', () => {
   });
 
   it('refuses to restore into a database that already has data, unless --replace', async () => {
-    await expect(restoreBackup(dst, file, PASS, { into: 'bak_dst' })).rejects.toThrow(/not empty/);
+    await expect(restoreBackup(dst, file, PASS, { into: 'admission_portal_test_bak_dst' })).rejects.toThrow(/not empty/);
     await dst.collection('users').insertOne({ name: 'extra', email: 'extra@x.com' });
-    const r = await restoreBackup(dst, file, PASS, { into: 'bak_dst', replace: true });
+    const r = await restoreBackup(dst, file, PASS, { into: 'admission_portal_test_bak_dst', replace: true });
     expect(r.restored.users).toBe(2);
     expect(await dst.collection('users').countDocuments()).toBe(2); // extra row was wiped
     expect(await dst.collection('users').countDocuments({ email: 'extra@x.com' })).toBe(0);
