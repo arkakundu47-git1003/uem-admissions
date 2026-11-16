@@ -97,12 +97,41 @@ What is sent (each reminder once; re-running the job never duplicates it):
 Each is an in-app notification plus an email when an email provider is configured. GitHub disables scheduled workflows in a
 repository with no activity for 60 days; re-enable under the Actions tab, or use cron-job.org with the same URL, method POST and header.
 
+## Separate production database and backups
+
+Use one database per purpose so testing can never touch real applicants: `admission_portal_prod` (production, used only by
+Render) and `admission_portal_dev` (your laptop). The database is just the name in the connection string, so one free Atlas
+cluster can hold both. The API prints a warning at startup if production is connected to a database named dev/test/staging/local.
+
+**Create the production database and move your data (one time):**
+1. Atlas -> Database Access: create a user `portal-prod` (read and write to `admission_portal_prod` only) and a second user
+   `portal-backup` with the **read** role on `admission_portal_prod` (used only for backups). Use long random passwords.
+2. Take a backup of the current database and check it:
+   `npm run backup -- --out=D:\uem-backups` then `npm run backup:verify -- <file>` (with `MONGODB_URI` pointing at `admission_portal_dev`).
+3. Restore it into the new production database (set `MONGODB_URI` to the **prod** URI, database name `admission_portal_prod`):
+   `npm run restore -- <file> --into=admission_portal_prod`. This carries over your admin account, programmes and applications.
+4. Render -> Environment: change `MONGODB_URI` to the prod URI (`.../admission_portal_prod?...`), save, and wait for the deploy.
+   Log in with your admin account and check the Users page, programmes and an application.
+5. Remove any test or demo records from the production database through the admin pages. From now on keep your local `server/.env`
+   pointing at `admission_portal_dev`. Never run `npm run seed` against production (the seed already refuses without safeguards).
+6. When you are satisfied, delete the old data from `admission_portal_dev` or keep it as your sandbox.
+
+**Nightly backups with GitHub Actions** (`.github/workflows/backup.yml`):
+1. Repository secrets: `BACKUP_MONGODB_URI` = the `portal-backup` (read-only) connection string for `admission_portal_prod`, and
+   `BACKUP_PASSPHRASE` = 20+ random characters. Save the passphrase in a password manager too: without it backups cannot be opened.
+2. Actions tab -> "Nightly database backup" -> Run workflow. A green run uploads an artifact named `uem-backup-<n>` (kept 30 days).
+3. Atlas -> Network Access must allow the runner (GitHub's addresses change, so this means `0.0.0.0/0`, which you likely already
+   need for Render). Protect the database with strong passwords and least-privilege users instead of the address list.
+4. If a scheduled run fails GitHub emails you; fix it promptly. Scheduled workflows also pause after 60 days without repository activity.
+5. Practice a restore into a scratch database (`--into=` its name) after the first successful run, then monthly.
+
 ## Pre-launch checklist
 
 - [ ] Strong, unique JWT secrets; no `.env` committed
 - [ ] Demo seed accounts deleted or passwords changed; seeded only on a fresh database
 - [ ] HTTPS everywhere; `CLIENT_ORIGIN` is the exact production origin
-- [ ] Atlas network allow-list restricted; automated backups enabled
+- [ ] Production uses its own database (`admission_portal_prod`) and its own least-privilege Atlas user
+- [ ] `BACKUP_MONGODB_URI` and `BACKUP_PASSPHRASE` set, one backup workflow run green, and one restore tested into a scratch database
 - [ ] Uploads on persistent storage (`STORAGE_DRIVER=gridfs`, a volume, or S3) and backed up
 - [ ] `CRON_SECRET` set on Render, `BACKEND_URL` and `CRON_SECRET` set as GitHub secrets, and one manual workflow run was green
 - [ ] Email provider configured (`RESEND_API_KEY` or `BREVO_API_KEY` on Render free) and a test email received

@@ -7,6 +7,9 @@
  "scripts": {
   "check": "node --check src/server.js",
   "seed": "node src/seed.js",
+  "backup": "node scripts/backup.js",
+  "backup:verify": "node scripts/backup.js --verify",
+  "restore": "node scripts/restore.js",
   "dev": "node --watch src/server.js",
   "start": "node src/server.js",
   "test": "vitest run"
