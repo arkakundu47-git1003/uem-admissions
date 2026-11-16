@@ -2,20 +2,21 @@ import mongoose from 'mongoose';
 
 const { Schema } = mongoose;
 
-export const Notification = mongoose.model(
-  'Notification',
-  new Schema(
-    {
-      user: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
-      title: { type: String, required: true },
-      message: { type: String, required: true },
-      type: { type: String, enum: ['info', 'success', 'warning', 'error'], default: 'info' },
-      link: String,
-      read: { type: Boolean, default: false },
-    },
-    { timestamps: true, toJSON: { versionKey: false } },
-  ),
+const notificationSchema = new Schema(
+  {
+    user: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    title: { type: String, required: true },
+    message: { type: String, required: true },
+    type: { type: String, enum: ['info', 'success', 'warning', 'error'], default: 'info' },
+    link: String,
+    read: { type: Boolean, default: false },
+  },
+  { timestamps: true, toJSON: { versionKey: false } },
 );
+notificationSchema.index({ user: 1, createdAt: -1 });
+notificationSchema.index({ user: 1, read: 1 });
+
+export const Notification = mongoose.model('Notification', notificationSchema);
 
 export const Announcement = mongoose.model(
   'Announcement',

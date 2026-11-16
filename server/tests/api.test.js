@@ -113,6 +113,18 @@ describe('University Admission Portal API', () => {
         .send(applicantDetails);
 
       expect(response.status).toBe(409);
+      expect(response.body.message).toBe('An account with this email already exists');
+      expect(response.body.fields.email).toBe('This email is already registered');
+    });
+
+    it('should keep concurrent duplicate registrations unique and return a conflict', async () => {
+      const responses = await Promise.all([
+        request(app).post('/api/v1/auth/register').send(applicantDetails),
+        request(app).post('/api/v1/auth/register').send(applicantDetails),
+      ]);
+
+      expect(responses.map((response) => response.status).sort()).toEqual([201, 409]);
+      expect(await User.countDocuments({ email: applicantDetails.email })).toBe(1);
     });
 
     it('should reject invalid registration details', async () => {
@@ -330,6 +342,39 @@ describe('University Admission Portal API', () => {
       const finalApplication = await Application.findById(applicationId);
 
       expect(finalApplication.status).toBe('accepted');
+    });
+
+    it('should atomically merge draft fields without reducing the saved step', async () => {
+      const applicantToken = await registerApplicant();
+      const course = await createTestCourse();
+      const created = await request(app)
+        .post('/api/v1/applications')
+        .set('Authorization', `Bearer ${applicantToken}`)
+        .send({ courseId: course._id.toString() });
+      expect(created.status).toBe(201);
+      expect(created.body.application.course.name).toBe(course.name);
+
+      const first = await request(app)
+        .put(`/api/v1/applications/${created.body.application._id}`)
+        .set('Authorization', `Bearer ${applicantToken}`)
+        .send({ step: 3, personal: { fullName: 'Saved Name', city: 'Kolkata' } });
+      expect(first.status).toBe(200);
+
+      const second = await request(app)
+        .put(`/api/v1/applications/${created.body.application._id}`)
+        .set('Authorization', `Bearer ${applicantToken}`)
+        .send({ step: 1, personal: { city: '' }, academic: { passingYear: 2024, percentage: 80 } });
+      expect(second.status).toBe(200);
+      expect(second.body.application.step).toBe(3);
+      expect(second.body.application.personal.fullName).toBe('Saved Name');
+      expect(second.body.application.personal.city).toBe('');
+      expect(second.body.application.academic.percentage).toBe(80);
+
+      const emptySave = await request(app)
+        .put(`/api/v1/applications/${created.body.application._id}`)
+        .set('Authorization', `Bearer ${applicantToken}`)
+        .send({});
+      expect(emptySave.status, JSON.stringify(emptySave.body)).toBe(200);
     });
   });
 });

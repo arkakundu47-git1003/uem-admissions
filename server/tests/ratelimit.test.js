@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import request from 'supertest';
@@ -17,6 +17,18 @@ describe('rate-limit keys', () => {
     const forged = token('victim', 'attacker-secret');
     expect(bearerUserId({ headers: { authorization: `Bearer ${forged}` } })).toBeNull();
     expect(apiKey({ ip: '9.9.9.9', headers: { authorization: `Bearer ${forged}` } })).toBe('ip:9.9.9.9');
+  });
+  it('verifies a token once per request while preserving the user rate-limit key', () => {
+    const req = { ip: '1.2.3.4', headers: { authorization: `Bearer ${token('abc')}` } };
+    const verify = vi.spyOn(jwt, 'verify');
+    try {
+      expect(bearerUserId(req)).toBe('abc');
+      expect(apiKey(req)).toBe('u:abc');
+      expect(bearerUserId(req)).toBe('abc');
+      expect(verify).toHaveBeenCalledTimes(1);
+    } finally {
+      verify.mockRestore();
+    }
   });
 });
 

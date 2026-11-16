@@ -11,13 +11,16 @@ export function nonProductionDbName(name) {
   );
 }
 
-export async function connectDB(uri = env.MONGODB_URI) {
+export async function connectDB(uri = env.MONGODB_URI, onClient) {
   mongoose.set('strictQuery', true);
 
-  await mongoose.connect(uri, {
+  const connecting = mongoose.connect(uri, {
     serverSelectionTimeoutMS: 8000,
     maxPoolSize: 20,
+    monitorCommands: true,
   });
+  if (onClient && mongoose.connection.client) onClient(mongoose.connection.getClient());
+  await connecting;
 
   console.log(
     `MongoDB connected: ${mongoose.connection.host}/${mongoose.connection.name}`

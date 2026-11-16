@@ -82,5 +82,6 @@ const applicationSchema = new Schema(
 
 applicationSchema.index({ applicant: 1, course: 1 }, { unique: true });
 applicationSchema.index({ status: 1, course: 1, submittedAt: -1 });
+applicationSchema.index({ applicant: 1, updatedAt: -1 });
 
 export const Application = mongoose.model('Application', applicationSchema);

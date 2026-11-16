@@ -30,5 +30,6 @@ courseSchema.virtual('isOpenNow').get(function isOpenNow() {
 });
 
 courseSchema.index({ name: 'text', code: 'text', department: 'text' });
+courseSchema.index({ isOpen: 1, deadline: 1, name: 1 });
 
 export const Course = mongoose.model('Course', courseSchema);
