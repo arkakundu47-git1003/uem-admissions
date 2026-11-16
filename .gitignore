@@ -10,6 +10,10 @@ build/
 .env.*
 !.env.example
 
+# Database backups (encrypted, but still personal data: never commit)
+backups/
+*.bak
+
 # Uploaded files
 uploads/
 .test-uploads/

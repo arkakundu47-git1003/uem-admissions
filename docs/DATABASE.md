@@ -54,11 +54,33 @@ Create additional staff from the admin console (Users → New staff account), no
 
 ## Backups and maintenance
 
-- **Atlas:** enable Cloud Backup (continuous or daily snapshots) and test a restore.
-- **Self-hosted / Docker:**
-  `docker compose exec mongo mongodump --archive --gzip > backup-$(date +%F).gz`
-  restore with `mongorestore --archive --gzip < backup.gz`.
-- With `local` storage back up the `uploads` volume alongside the database; the two must stay consistent. With
-  `gridfs`, `mongodump` already includes `documents.files`/`documents.chunks`, so one backup covers both.
+**Atlas Free (M0) clusters have no built-in backups** (Cloud Backup starts at M10; Flex clusters get daily snapshots).
+This project therefore includes its own encrypted backup tool. It needs no extra software, copies every collection
+(including the GridFS `documents.files` / `documents.chunks`) and the index definitions, encrypts the result with
+AES-256-GCM using `BACKUP_PASSPHRASE`, and reads every backup back before reporting success.
+
+```powershell
+cd server
+$env:MONGODB_URI = "<connection string of the database to back up>"
+$env:BACKUP_PASSPHRASE = "<20+ random characters, saved in a password manager>"
+npm run backup -- --out=D:\uem-backups --keep=14        # writes uem-<db>-<timestamp>.bak, keeps the newest 14
+npm run backup:verify -- D:\uem-backups\uem-....bak      # re-checks any backup; needs only the passphrase, no database
+npm run restore -- D:\uem-backups\uem-....bak --into=<database name>
+```
+
+- **Restore safety:** `--into` must equal the database in `MONGODB_URI`; the target must be empty (otherwise add `--replace`,
+  which wipes it after a 5 second countdown); the whole backup is authenticated before the first document is written.
+  A wrong passphrase, corruption or tampering is detected and nothing is changed.
+- **Nightly automation:** `.github/workflows/backup.yml` (02:30 IST) stores an encrypted backup as a workflow artifact for
+  30 days. Setup is in `docs/DEPLOYMENT.md`. Also keep occasional copies somewhere other than GitHub.
+- **Test your restores.** A backup you have never restored is a hope, not a backup. Once a month restore the latest
+  one into an empty scratch database and look at it.
+- **Not a point-in-time snapshot:** collections are read one after another, so a write during the backup may be in one
+  collection but not another. The nightly run is at a quiet hour; for strict consistency use Atlas Cloud Backup (M10+).
+- Backups contain personal data (names, emails, phone numbers, uploaded documents). They are encrypted, but treat the
+  files and the passphrase as confidential. They are git-ignored (`backups/`, `*.bak`); never commit them.
+- **Self-hosted / Docker:** `mongodump --archive --gzip` / `mongorestore --archive --gzip` also work; the npm tool above is
+  equivalent and works the same everywhere.
+- With `STORAGE_DRIVER=local` also back up the `uploads` volume; with `gridfs` the files are already inside the backup.
 - Review `auditlogs` periodically; add a TTL index if you need to expire old entries:
   `db.auditlogs.createIndex({ createdAt: 1 }, { expireAfterSeconds: 31536000 })`.
