@@ -92,13 +92,22 @@ describe.skipIf(!URI)('reminders and announcements', () => {
     expect(await Notification.countDocuments()).toBe(2);
   });
 
-  it('later milestones fire again: 1 day left, and documents again after 3 days', async () => {
-    const later = new Date(Date.now() + 1.7 * DAY); // ~0.8 day to deadline -> bucket 1
-    const s = await runReminders({ now: later });
-    expect(s.deadline).toBe(1);
-    const s2 = await runReminders({ now: new Date(Date.now() + 3.5 * DAY - 1) }); // deadline already passed for the draft
-    expect(s2.deadline).toBe(0);
-    expect(s2.documents).toBe(1); // new 3-day window
+  it('deadline reminders fire again at the 1-day milestone (only once)', async () => {
+    const dl = (await Course.findOne({ code: 'R-1' })).deadline;
+    const at = new Date(dl.getTime() - 0.8 * DAY); // less than a day left -> milestone "1"
+    expect((await runReminders({ now: at })).deadline).toBe(1);
+    expect((await runReminders({ now: at })).deadline).toBe(0);
+    expect((await runReminders({ now: new Date(dl.getTime() + 1000) })).deadline).toBe(0); // deadline passed: stop
+  });
+
+  it('document reminders repeat every 3 days, not more often (independent of the time of day the suite runs)', async () => {
+    await ReminderLog.deleteMany({});
+    const W = 3 * DAY;
+    const t1 = (Math.floor(Date.now() / W) + 1) * W + 3600e3; // 1 hour into a fresh 3-day window
+    expect((await runReminders({ now: new Date(t1) })).documents).toBe(1);
+    expect((await runReminders({ now: new Date(t1 + 0.5 * DAY) })).documents).toBe(0); // same window
+    expect((await runReminders({ now: new Date(t1 + 1.9 * DAY) })).documents).toBe(0); // still the same window
+    expect((await runReminders({ now: new Date(t1 + W) })).documents).toBe(1); // next window
   });
 
   it('stops nagging when documents are complete, or the application is decided', async () => {
