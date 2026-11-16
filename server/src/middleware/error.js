@@ -9,6 +9,11 @@ export function notFound(req, res) {
 
 // eslint-disable-next-line no-unused-vars
 export function errorHandler(err, req, res, next) {
+  // A streamed response (CSV, file download) already started: a JSON error body can no longer be sent.
+  if (res.headersSent) {
+    console.error('Error after response started:', err.message);
+    return res.destroy();
+  }
   let status = err.status || 500;
   let message = err.message || 'Something went wrong';
   let fields;

@@ -1,7 +1,10 @@
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { Award, BookOpen, ClipboardList, Hourglass, Users } from 'lucide-react';
+import { useState } from 'react';
+import { Award, BookOpen, ClipboardList, Download, Hourglass, Users } from 'lucide-react';
+import { toast } from 'sonner';
+import { downloadFile } from '../../lib/download';
 import { api } from '../../lib/api';
 import { useAuth } from '../../hooks/useAuth';
 import { Counter } from '../../components/ui/Misc';
@@ -15,6 +18,13 @@ const STATUS_COLOR = { submitted: 'var(--chart-1)', under_review: 'var(--chart-2
 
 export default function StaffOverview() {
   const { user } = useAuth();
+  const [exporting, setExporting] = useState(false);
+  const exportSummary = async () => {
+    setExporting(true);
+    try { await downloadFile('/reports/programmes.csv', undefined, 'programmes.csv'); toast.success('Summary downloaded'); }
+    catch (e) { toast.error(e.message); }
+    finally { setExporting(false); }
+  };
   const { data, isLoading, error, refetch } = useQuery({ queryKey: ['reports', 'overview'], queryFn: async () => (await api.get('/reports/overview')).data, refetchInterval: 60_000 });
   if (error) return <ErrorState error={error} onRetry={refetch} />;
 
@@ -30,7 +40,10 @@ export default function StaffOverview() {
     <div className="stack-lg">
       <div className="page-head" style={{ marginBottom: 0 }}>
         <div><h1 style={{ fontSize: 'var(--text-2xl)' }}>Admissions overview</h1><p>{user.role === 'coordinator' ? `Applications for ${user.department}` : 'Live snapshot across all programmes'}</p></div>
-        <Button variant="primary" to="/staff/applications">Open review queue</Button>
+        <div className="row" style={{ gap: 10, flexWrap: 'wrap' }}>
+          <Button variant="secondary" onClick={exportSummary} loading={exporting} icon={<Download size={17} />}>Export programme summary</Button>
+          <Button variant="primary" to="/staff/applications">Open review queue</Button>
+        </div>
       </div>
 
       <motion.div className="stat-grid" variants={stagger} initial="hidden" animate="show">

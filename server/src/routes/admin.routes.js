@@ -8,6 +8,10 @@ import { validate } from '../middleware/validate.js';
 import { ApiError, asyncHandler, escapeRegex, pageParams } from '../utils/http.js';
 import { courseScope } from '../services/access.js';
 import { audit } from '../services/notify.js';
+import { env } from '../config/env.js';
+import { BOM, csvRow } from '../utils/csv.js';
+import { buildReviewFilter } from '../services/applicationFilter.js';
+import { STATUSES } from '../constants.js';
 import { createResetLink, emailResetLink } from '../services/passwordReset.js';
 
 export const admin = Router();
@@ -136,5 +140,82 @@ reports.get(
       byCourse,
       daily: series,
     });
+  }),
+);
+
+/* ---------------- CSV exports (same visibility rules as the review queue) ---------------- */
+const ist = (d) => (d ? new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Kolkata', dateStyle: 'short', timeStyle: 'short' }).format(d) : '');
+const today = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
+const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+function csvHeaders(res, name) {
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="${name}-${today()}.csv"`);
+  res.setHeader('Cache-Control', 'no-store');
+}
+
+// One row per submitted application the user is allowed to see. Filters: status, course, q, from, to (YYYY-MM-DD, IST).
+reports.get(
+  '/applications.csv',
+  asyncHandler(async (req, res) => {
+    const filter = await buildReviewFilter(req.user, req.query);
+    for (const [key, op, edge] of [['from', '$gte', 'T00:00:00+05:30'], ['to', '$lte', 'T23:59:59.999+05:30']]) {
+      if (req.query[key] === undefined) continue;
+      if (!DAY_RE.test(req.query[key]) || Number.isNaN(Date.parse(`${req.query[key]}${edge}`))) throw new ApiError(422, `"${key}" must be a date like 2026-12-31`);
+      filter.submittedAt = { ...filter.submittedAt, [op]: new Date(`${req.query[key]}${edge}`) };
+    }
+    const total = await Application.countDocuments(filter);
+    if (total > env.EXPORT_MAX_ROWS) {
+      throw new ApiError(413, `This export has ${total} rows, above the limit of ${env.EXPORT_MAX_ROWS}. Narrow it with a status, programme or date range.`);
+    }
+    csvHeaders(res, 'uem-applications');
+    res.write(BOM);
+    res.write(csvRow(['Application No', 'Applicant', 'Email', 'Phone', 'Programme code', 'Programme', 'Department', 'Level', 'Status', 'Submitted (IST)', 'Percentage', 'Documents required', 'Documents verified', 'Documents rejected', 'Payment', 'Decision date (IST)']));
+    const cursor = Application.find(filter)
+      .populate('course', 'code name department level requiredDocuments')
+      .populate('applicant', 'name email')
+      .select('applicationNo status submittedAt personal.fullName personal.phone academic.percentage documents payment decision.at course applicant')
+      .sort({ submittedAt: -1 })
+      .lean()
+      .cursor();
+    let rows = 0;
+    for await (const a of cursor) {
+      const docs = a.documents || [];
+      res.write(csvRow([
+        a.applicationNo, a.personal?.fullName || a.applicant?.name, a.applicant?.email, a.personal?.phone,
+        a.course?.code, a.course?.name, a.course?.department, a.course?.level, a.status, ist(a.submittedAt), a.academic?.percentage,
+        a.course?.requiredDocuments?.length ?? 0, docs.filter((d) => d.status === 'verified').length, docs.filter((d) => d.status === 'rejected').length,
+        a.payment?.status, ist(a.decision?.at),
+      ]));
+      rows += 1;
+    }
+    res.end();
+    audit(req.user, 'report.export', 'Application', '', { type: 'applications', rows, filters: { status: req.query.status, course: req.query.course, q: !!req.query.q, from: req.query.from, to: req.query.to } });
+  }),
+);
+
+// One row per programme: seats and how many applications are at each stage.
+reports.get(
+  '/programmes.csv',
+  asyncHandler(async (req, res) => {
+    const scope = await courseScope(req.user);
+    const courses = await Course.find(scope ? { _id: scope } : {}).sort({ code: 1 }).lean();
+    const counts = await Application.aggregate([
+      { $match: { status: { $ne: 'draft' }, course: { $in: courses.map((c) => c._id) } } },
+      { $group: { _id: { course: '$course', status: '$status' }, n: { $sum: 1 } } },
+    ]);
+    const byCourse = new Map();
+    for (const { _id, n } of counts) byCourse.set(String(_id.course), { ...byCourse.get(String(_id.course)), [_id.status]: n });
+    const stages = STATUSES.filter((s) => s !== 'draft');
+    csvHeaders(res, 'uem-programmes');
+    res.write(BOM);
+    res.write(csvRow(['Code', 'Programme', 'Department', 'Level', 'Seats', 'Deadline (IST)', 'Open', 'Applications received', ...stages.map((s) => s.replace('_', ' ')), 'Seats remaining']));
+    for (const c of courses) {
+      const m = byCourse.get(String(c._id)) || {};
+      const received = stages.reduce((sum, s) => sum + (m[s] || 0), 0);
+      res.write(csvRow([c.code, c.name, c.department, c.level, c.seats, ist(c.deadline), c.isOpen && c.deadline > new Date() ? 'yes' : 'no', received, ...stages.map((s) => m[s] || 0), Math.max(0, c.seats - (m.accepted || 0))]));
+    }
+    res.end();
+    audit(req.user, 'report.export', 'Course', '', { type: 'programmes', rows: courses.length });
   }),
 );

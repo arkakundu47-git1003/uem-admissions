@@ -71,6 +71,15 @@ server/src
   config/ models/ middleware/ routes/ services/ utils/ seed.js
 ```
 
+## Reports and CSV export
+
+Staff can download CSV files (Excel-ready, UTF-8): **Export CSV** on the review queue exports the applications matching
+the current filters (`GET /api/v1/reports/applications.csv?status=&course=&q=&from=&to=`), and **Export programme summary** on the
+overview page lists seats, applications per stage and seats remaining per programme (`/reports/programmes.csv`).
+Coordinators only ever receive their own department's data, applicants cannot export, drafts are never included, text that
+could run as a spreadsheet formula is neutralised, and every export is recorded in the audit log. The files contain
+applicants' names, emails and phone numbers: store and share them as personal data.
+
 ## Notifications
 
 In-app notifications (and email when a provider is configured) are sent for status changes, document verification, password changes, new announcements (email is opt-in per announcement) and automatic reminders for approaching deadlines and missing documents. See *Automatic reminders* in `docs/DEPLOYMENT.md`.
