@@ -1,5 +1,8 @@
 # Load testing (NFR-1 and NFR-5)
 
+> **Status:** larger runs (25, 50 and 100 users) are deliberately paused; the tooling stays in the repository as project evidence.
+> Results so far and their interpretation are in [`PERFORMANCE.md`](PERFORMANCE.md).
+
 Requirements being checked:
 
 - **NFR-1**: 95% of requests are answered in under 3 seconds.
@@ -71,7 +74,7 @@ individual pass/fail gates. **Keep the printed table and result JSON: they are t
 |---|---|---|
 | `RESULT: PASS` | The measured aggregate checks passed for this run | Record the environment, test parameters, and per-endpoint results; repeat at 100 users before claiming capacity |
 | p95 over 3000 ms, mostly on `register` | Registration is slow; the test does not identify whether hashing, CPU, or database work is responsible | Correlate with server performance logs and Render/Atlas metrics; do not lower password-hashing cost |
-| p95 over 3000 ms on every action | The server or database is too small for 100 users | Send me the table; check Atlas and Render metrics |
+| p95 over 3000 ms on every action | The server or database may be too small for this number of users | Compare with the server performance log and the Atlas and Render metrics (see `docs/PERFORMANCE.md`) |
 | Errors containing `429` | A rate limiter answered | Check whether the configured policy matches expected traffic; do not raise limits just to pass |
 | Errors containing `timeout` or `network` | The server fell over or the connection dropped | Check Render logs for the time of the run |
 
@@ -90,5 +93,5 @@ npm run loadtest:cleanup -- --confirm admission_portal_dev --dry-run   # only co
 npm run loadtest:cleanup -- --confirm admission_portal_dev
 ```
 
-Only after approval, run the non-dry-run cleanup command shown by the tool’s instructions. Review scope for users named
-`loadtest+<6 hex>-<number>@example.com` and their applications, notifications, and files before proceeding.
+The cleanup only touches users named `loadtest+<6 hex>-<number>@example.com` and their applications, notifications and stored documents.
+Check the counts from the dry run before running the real command. You can then pause or delete the staging service.

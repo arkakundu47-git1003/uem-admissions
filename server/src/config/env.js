@@ -3,6 +3,8 @@ import 'dotenv/config';
 
 const isProd = process.env.NODE_ENV === 'production';
 
+// APP_ENV names the deployment (production | staging | development) separately from NODE_ENV, because a staging
+// service also runs with NODE_ENV=production. Empty means production when NODE_ENV=production, else development.
 const APP_ENV = process.env.APP_ENV || (isProd ? 'production' : 'development');
 
 function secret(name, devDefault) {
@@ -47,6 +49,8 @@ export const env = {
   JWT_ACCESS_EXPIRES: process.env.JWT_ACCESS_EXPIRES || '15m',
   JWT_REFRESH_DAYS: Number(process.env.JWT_REFRESH_DAYS || 7),
 
+  // Cookie flags: defaults suit a separately hosted HTTPS frontend in production.
+  // Behind a same-origin proxy over plain HTTP (e.g. local Docker) set COOKIE_SECURE=false COOKIE_SAMESITE=lax.
   COOKIE_SECURE:
     (process.env.COOKIE_SECURE ?? String(isProd)) === 'true',
 
@@ -58,18 +62,21 @@ export const env = {
 
   RATE_LIMIT_SCALE: Number(process.env.RATE_LIMIT_SCALE || 1),
 
-  STORAGE_DRIVER: process.env.STORAGE_DRIVER || 'local',
+  STORAGE_DRIVER: process.env.STORAGE_DRIVER || 'local', // 'local' | 'gridfs'
 
   SMTP_HOST: process.env.SMTP_HOST || '',
   SMTP_PORT: Number(process.env.SMTP_PORT || 587),
   SMTP_USER: process.env.SMTP_USER || '',
   SMTP_PASS: process.env.SMTP_PASS || '',
 
+  // Email provider: 'resend' | 'brevo' | 'smtp' | 'none'. Empty = auto (Resend key, else Brevo key, else SMTP, else none).
+  // Render free blocks outbound SMTP (ports 25/465/587), so use an HTTPS provider there.
   EMAIL_PROVIDER: (process.env.EMAIL_PROVIDER || '').toLowerCase(),
 
   RESEND_API_KEY: process.env.RESEND_API_KEY || '',
   BREVO_API_KEY: process.env.BREVO_API_KEY || '',
 
+  // The two API URLs below are overridden only by tests.
   RESEND_API_URL:
     process.env.RESEND_API_URL || 'https://api.resend.com/emails',
 
@@ -77,12 +84,15 @@ export const env = {
     process.env.BREVO_API_URL ||
     'https://api.brevo.com/v3/smtp/email',
 
+  // Reminders: an external scheduler calls POST /api/v1/internal/run-reminders with header x-cron-secret.
+  // Leave CRON_SECRET empty to disable the endpoint. Use 24+ random characters.
   CRON_SECRET: process.env.CRON_SECRET || '',
 
   REMINDER_MAX_PER_RUN: Number(
     process.env.REMINDER_MAX_PER_RUN || 150
   ),
 
+  // Free email plans cap daily sends (Brevo: 300/day).
   ANNOUNCEMENT_EMAIL_MAX: Number(
     process.env.ANNOUNCEMENT_EMAIL_MAX || 150
   ),
@@ -92,5 +102,6 @@ export const env = {
   MAIL_FROM:
     process.env.MAIL_FROM || 'UEM Admissions <admissions@example.edu>',
 
+  // No default on purpose: a default password in public source code is a published credential.
   SEED_PASSWORD: process.env.SEED_PASSWORD || '',
 };

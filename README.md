@@ -7,7 +7,7 @@ applications; administrators manage programmes, users, announcements and the aud
 | Layer | Stack |
 |---|---|
 | Frontend (`client/`) | React 18, Vite, React Router, Redux Toolkit (session), TanStack Query (server state), React Hook Form + Zod, Framer Motion, hand-written CSS design system (tokens, light/dark) |
-| Backend (`server/`) | Node 18+, Express, Mongoose, JWT access token + httpOnly refresh cookie, bcrypt, Helmet, rate limiting, Zod validation, Multer uploads |
+| Backend (`server/`) | Node 18+, Express, Mongoose, JWT access token + httpOnly refresh cookie, bcryptjs, Helmet, rate limiting, Zod validation, Multer uploads |
 | Database | MongoDB 7 (Atlas or self-hosted) |
 
 ## Requirements covered (from the SRS)
@@ -21,7 +21,8 @@ applications; administrators manage programmes, users, announcements and the aud
 | FR-5 Document upload | Per-document upload with type/size/signature checks, officer verify/reject |
 | FR-6 Status tracking | Status timeline, notifications (in-app + email) |
 | NFR-2 Security | RBAC middleware, hashed passwords, account lockout, authenticated file access |
-| NFR-1/5 Performance | Code-split routes, indexed queries, pagination, response compression |
+| NFR-1 Performance (95% of requests < 3 s) | **Measured on the free hosting tier: met at 5 and 10 concurrent users, not met at 15** (see [`docs/PERFORMANCE.md`](docs/PERFORMANCE.md)). Design measures: code-split routes, indexed queries, pagination, response compression |
+| NFR-5 Reliability under 100 concurrent users | **Not verified.** The load-test tooling exists; larger runs were deliberately not performed on free hosting (see `docs/PERFORMANCE.md`) |
 
 Roles: **applicant**, **officer**, **coordinator** (scoped to their department), **admin**.
 
@@ -57,6 +58,9 @@ docker compose run --rm server node src/seed.js --reset=admission_portal --force
 
 - [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) – Atlas + Render + Vercel, Docker/VPS, environment variables, checklist
 - [`docs/DATABASE.md`](docs/DATABASE.md) – collections, indexes, seeding, backups
+- [`docs/TESTING.md`](docs/TESTING.md) – what every test checks and how to run them
+- [`docs/PERFORMANCE.md`](docs/PERFORMANCE.md) – measured performance results, limits and how to read the server's performance log
+- [`docs/LOADTEST.md`](docs/LOADTEST.md) – how to run the load test on staging and clean up afterwards
 
 ## Project structure
 
@@ -86,6 +90,7 @@ In-app notifications (and email when a provider is configured) are sent for stat
 
 ## Known limitations
 
+- **Performance on free hosting:** with 15 concurrent users the 95th-percentile response time was 3.9 s (target 3 s), mainly during registration and starting an application. The cause has not been proven; see `docs/PERFORMANCE.md`. 100 concurrent users have **not** been tested.
 - The payment step is a **simulation** (test transaction ids). Replace `POST /applications/:id/pay` with a
   Razorpay/Stripe order + signature verification before taking real money.
 - Uploaded documents default to local disk (`UPLOAD_DIR`), which is wiped on Render free restarts. Set
