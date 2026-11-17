@@ -26,9 +26,10 @@ function recordDuration(stats, durationMs) {
   }
 }
 
-function routeLabel(req) {
+// Requests that never reached a route (login required, rate limited, blocked by CORS, unknown URL) are grouped by status.
+function routeLabel(req, res) {
   const routePath = req.route?.path;
-  if (typeof routePath !== 'string') return `${req.method} <unmatched>`;
+  if (typeof routePath !== 'string') return `${req.method} <unmatched ${res.statusCode || 0}>`;
   return `${req.method} ${req.baseUrl || ''}${routePath}`;
 }
 
@@ -70,7 +71,7 @@ export function createPerformanceMonitor({
       if (recorded) return;
       recorded = true;
       const durationMs = Number(process.hrtime.bigint() - started) / 1e6;
-      const stats = getStats(routes, routeLabel(req));
+      const stats = getStats(routes, routeLabel(req, res));
       recordDuration(stats, durationMs);
       const status = String(res.statusCode || 0);
       stats.statuses[status] = (stats.statuses[status] || 0) + 1;

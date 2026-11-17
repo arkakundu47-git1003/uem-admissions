@@ -48,7 +48,7 @@ About every 60 seconds the API prints one JSON line (`"type":"performance"`; see
 |---|---|---|
 | `process.cpuPercent` | CPU used by the Node process over the interval, relative to one full core | Staying near the plan's limit during a test means the server is CPU-bound |
 | `process.eventLoopDelayMs` (p95, max) | How long the single Node thread was blocked | p95 above about 100 ms means requests wait for the CPU |
-| `http[]` | Per route template: count, p50/p95/p99/max, status counts, aborted requests | Slow routes; counts of 4xx/5xx. Requests rejected before any route is matched (login required, rate limited, blocked by CORS, unknown URL) are grouped as `<unmatched>` |
+| `http[]` | Per route template: count, p50/p95/p99/max, status counts, aborted requests | Slow routes; counts of 4xx/5xx. Requests rejected before any route is matched (login required, rate limited, blocked by CORS, unknown URL) appear as `<unmatched STATUS>`, e.g. `POST <unmatched 429>` |
 | `mongo.commands[]` | Per MongoDB command: count, timings, failures | High timings with a quiet event loop point to the database or network |
 | `mongo.pool` | Connections and how long requests waited for one | Long waits or failures mean the connection pool is too small or the database is slow |
 

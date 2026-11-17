@@ -6,7 +6,7 @@ import { createPerformanceMonitor } from './services/performance.js';
 async function main() {
   const performanceMonitor = createPerformanceMonitor();
   await connectDB(env.MONGODB_URI, (client) => performanceMonitor.attachMongo(client));
-  performanceMonitor.start();
+  if (env.PERFORMANCE_LOG) performanceMonitor.start();
   const app = createApp({ performanceMiddleware: performanceMonitor.middleware });
   const server = app.listen(env.PORT, () => console.log(`API listening on :${env.PORT} (${env.NODE_ENV})`));
 
