@@ -83,15 +83,14 @@ guarantee another environment will pass.
 
 ## Clean up
 
-The test does not delete staging data. Before any cleanup, run the cleanup tool in dry-run mode, review its reported counts and scope, and get
+The test does not delete staging data. Before any cleanup, run the cleanup tool in preview mode (the default), review its reported counts and scope, and get
 explicit approval before running a destructive cleanup. Use only a connection string scoped to `admission_portal_dev`; never use production credentials.
 
 ```powershell
 cd server
-npm run loadtest:cleanup -- --confirm admission_portal_dev --dry-run   # only counts
-# Only after dry-run review and explicit approval:
-npm run loadtest:cleanup -- --confirm admission_portal_dev
+npm run loadtest:cleanup -- --confirm admission_portal_dev           # preview: only counts, deletes nothing
+npm run loadtest:cleanup -- --confirm admission_portal_dev --apply   # deletes what the preview listed
 ```
 
-The cleanup only touches users named `loadtest+<6 hex>-<number>@example.com` and their applications, notifications and stored documents.
+The cleanup refuses any database whose name looks like production. It only touches users named `loadtest+<6 hex>-<number>@example.com` and their applications, notifications (including the staff notifications about those applications) and stored documents.
 Check the counts from the dry run before running the real command. You can then pause or delete the staging service.

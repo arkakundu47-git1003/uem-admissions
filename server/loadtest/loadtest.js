@@ -160,13 +160,17 @@ async function main() {
   process.stdout.write('Waking the server... ');
   const w0 = performance.now();
   let up = false;
+  let health = null;
   for (let i = 0; i < 12 && !up; i++) {
     const r = await fetch(`${base}/health`, { signal: AbortSignal.timeout(30000) }).catch(() => null);
     up = !!r?.ok;
-    if (!up) await sleep(5000);
+    if (up) health = await r.json().catch(() => null);
+    else await sleep(5000);
   }
   if (!up) { console.error('\nThe server did not respond to /health. Stopping.'); process.exit(2); }
   console.log(`ready after ${Math.round(performance.now() - w0)} ms`);
+  // Second safety layer: the server itself says which deployment it is (older builds do not say, then only the host check applies).
+  if (health?.appEnv === 'production') { console.error('The server reports APP_ENV=production. Refusing to load-test a production deployment.'); process.exit(2); }
 
   const courses = (await call('warmup', 'GET', '/courses?open=true', { record: false })).data?.courses ?? [];
   if (!courses.length) { console.error('No open programmes found on the target. Seed some first.'); process.exit(2); }

@@ -60,12 +60,15 @@ router.post(
   registerLimiter,
   validate(registerSchema),
   asyncHandler(async (req, res) => {
+    const duplicate = new ApiError(409, 'An account with this email already exists', { email: 'This email is already registered' });
+    // Cheap check first: a duplicate must not cost a password hash. The unique index below still settles races.
+    if (await User.exists({ email: req.body.email })) throw duplicate;
     let user;
     try {
       user = await User.create({ ...req.body, role: 'applicant' });
     } catch (err) {
       if (err?.code !== 11000) throw err;
-      throw new ApiError(409, 'An account with this email already exists', { email: 'This email is already registered' });
+      throw duplicate;
     }
     startSession(res, user, 0, 201);
   }),

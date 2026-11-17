@@ -1,4 +1,5 @@
 import express from 'express';
+import mongoose from 'mongoose';
 import helmet from 'helmet';
 import cors from 'cors';
 import compression from 'compression';
@@ -27,7 +28,11 @@ export function createApp({ performanceMiddleware } = {}) {
   app.use(cookieParser());
   if (env.NODE_ENV !== 'test') app.use(morgan(env.isProd ? 'combined' : 'dev'));
 
-  app.get('/health', (req, res) => res.json({ status: 'ok', uptime: process.uptime() }));
+  // Always HTTP 200 (the host's health check must not restart the service over a database blip); read `db` for the real state.
+  app.get('/health', (req, res) => {
+    const db = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
+    res.json({ status: db === 'connected' ? 'ok' : 'degraded', db, appEnv: env.APP_ENV, uptime: process.uptime() });
+  });
   app.use('/api', apiLimiter);
   app.use('/api/v1', routes);
 
