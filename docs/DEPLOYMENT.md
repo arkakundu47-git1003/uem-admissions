@@ -9,6 +9,7 @@ VPS or a college server.
 | Variable | Required | Notes |
 |---|---|---|
 | `NODE_ENV` | yes | `production` |
+| `APP_ENV` | no | `production`, `staging` or `development`. Names the *deployment*, separately from `NODE_ENV`. Empty means `production` when `NODE_ENV=production`, otherwise `development`. On a staging service (which also runs with `NODE_ENV=production`) set `APP_ENV=staging`. Today it only controls the start-up warning "production is using a dev/test database"; never set it to `staging` on the real production service |
 | `MONGODB_URI` | yes | Atlas connection string |
 | `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET` | yes | Random, 32+ characters, different from each other. The API refuses to start in production without them |
 | `CLIENT_ORIGIN` | yes | Exact frontend origin, e.g. `https://admissions.example.edu` (comma-separate several) |
@@ -138,7 +139,7 @@ cluster can hold both. The API prints a warning at startup if production is conn
 - [ ] "Forgot password?" tested end to end (email arrives, link works once, old password stops working); `CLIENT_ORIGIN` starts with the real frontend URL because reset links are built from it
 - [ ] Payment gateway integrated (the bundled one is a simulation)
 - [ ] Uptime check on `/health`; error monitoring (e.g. Sentry) added
-- [ ] Load test against NFR-1 and NFR-5 (100 concurrent users, 95% of requests under 3 s): follow `docs/LOADTEST.md`
+- [ ] Performance evidence recorded (NFR-1 / NFR-5): current results and limits are in `docs/PERFORMANCE.md`; the load test is run on staging only, following `docs/LOADTEST.md`
 
 ## What was and wasn't verified
 
@@ -147,3 +148,9 @@ builds, and every page renders without console errors against mocked API respons
 included). **Not verified:** end-to-end flows against a live MongoDB (the build sandbox cannot download or run
 MongoDB). Run the Docker stack or the seed + dev servers once and click through register → apply → review →
 decision before going live.
+
+## Performance log
+
+The API writes one JSON line about every 60 seconds, starting `{"type":"performance"`. In the Render dashboard open **Logs** and search for
+`"type":"performance"`. It holds route-template timings and status counts (no IDs, query values or tokens), event-loop delay, process CPU and memory,
+MongoDB command timings and connection-pool waits. How to read it: `docs/PERFORMANCE.md`.
