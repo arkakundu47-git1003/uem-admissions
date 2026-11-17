@@ -9,7 +9,8 @@ VPS or a college server.
 | Variable | Required | Notes |
 |---|---|---|
 | `NODE_ENV` | yes | `production` |
-| `APP_ENV` | no | `production`, `staging` or `development`. Names the *deployment*, separately from `NODE_ENV`. Empty means `production` when `NODE_ENV=production`, otherwise `development`. On a staging service (which also runs with `NODE_ENV=production`) set `APP_ENV=staging`. Today it only controls the start-up warning "production is using a dev/test database"; never set it to `staging` on the real production service |
+| `APP_ENV` | no | `production`, `staging` or `development`. Names the *deployment*, separately from `NODE_ENV`. Empty means `production` when `NODE_ENV=production`, otherwise `development`. On a staging service (which also runs with `NODE_ENV=production`) set `APP_ENV=staging`. Any other value stops the API from starting. `staging` also **refuses to start if `MONGODB_URI` names a production-looking database** (`prod`, `production`, `live`), so a staging service can never write test data into production. `production` only prints a warning if the database looks like dev/test. Never set `staging` on the real production service; `GET /health` reports the value as `appEnv`, and the load test refuses a server that reports `production` |
+| `PERFORMANCE_LOG` | no | `off` stops the once-a-minute performance log line. Default: on |
 | `MONGODB_URI` | yes | Atlas connection string |
 | `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET` | yes | Random, 32+ characters, different from each other. The API refuses to start in production without them |
 | `CLIENT_ORIGIN` | yes | Exact frontend origin, e.g. `https://admissions.example.edu` (comma-separate several) |
@@ -148,6 +149,11 @@ builds, and every page renders without console errors against mocked API respons
 included). **Not verified:** end-to-end flows against a live MongoDB (the build sandbox cannot download or run
 MongoDB). Run the Docker stack or the seed + dev servers once and click through register → apply → review →
 decision before going live.
+
+## Health check
+
+`GET /health` always answers HTTP 200 so the host does not restart the service over a short database blip. Read the body: `{"status":"ok","db":"connected","appEnv":"production","uptime":123}`;
+`status:"degraded"` with `db:"disconnected"` means MongoDB is not reachable. Point an uptime monitor at it and alert on `degraded`.
 
 ## Performance log
 

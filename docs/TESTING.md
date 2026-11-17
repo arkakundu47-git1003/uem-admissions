@@ -7,6 +7,8 @@
 | `server/tests/api.test.js` | Registration, login, role access, eligibility and review workflow | No (starts its own in-memory MongoDB; the first run downloads it) |
 | `validation`, `ratelimit`, `mailer`, `globalSetup` | Input messages, rate limits, email providers, the test safety guard | No |
 | `loadtest` | Percentiles, status/timeout summaries, staging-target guard, active-user checks, and pass/fail rules; the load test itself is run by hand, see `docs/LOADTEST.md` | No |
+| `environment` | Staging/production database guard, `APP_ENV` validation, `/health` body, performance-log labels | No |
+| `cleanup` | Duplicate registration (409, no account created, race-safe), and that the load-test cleanup removes only generated data | **Yes** (`TEST_MONGODB_URI`) |
 | `security`, `workflow` | Token attacks, role and department access, other-applicant data (IDOR), mass assignment, uploads, headers/CORS; every status transition, seat limits, document review, submission rules | **Yes** (`TEST_MONGODB_URI`) |
 | `client/tests/*` (run with `cd client; npm test`) | Login form validation and sign-in flow, role route guards (guest, wrong role, session restoring), password rules, helpers | No |
 | `passwords`, `emailflow`, `reminders`, `export`, `storage`, `backup` | Password reset, reminders, CSV export, document storage, encrypted backup/restore | **Yes** (`TEST_MONGODB_URI`) |

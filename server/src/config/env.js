@@ -5,7 +5,12 @@ const isProd = process.env.NODE_ENV === 'production';
 
 // APP_ENV names the deployment (production | staging | development) separately from NODE_ENV, because a staging
 // service also runs with NODE_ENV=production. Empty means production when NODE_ENV=production, else development.
+const APP_ENVS = ['production', 'staging', 'development', 'test'];
 const APP_ENV = process.env.APP_ENV || (isProd ? 'production' : 'development');
+// A typo such as APP_ENV=prod would silently switch the safety checks off, so refuse to start instead.
+if (!APP_ENVS.includes(APP_ENV)) {
+  throw new Error(`APP_ENV must be one of: ${APP_ENVS.join(', ')} (got "${APP_ENV}")`);
+}
 
 function secret(name, devDefault) {
   const value = process.env[name];
@@ -27,6 +32,8 @@ export const env = {
   APP_ENV,
   isProd,
   isStaging: APP_ENV === 'staging',
+  // Set PERFORMANCE_LOG=off to stop the once-a-minute performance log line.
+  PERFORMANCE_LOG: process.env.PERFORMANCE_LOG !== 'off',
 
   PORT: Number(process.env.PORT || 5000),
   MONGODB_URI:
