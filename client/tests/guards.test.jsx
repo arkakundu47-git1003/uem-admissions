@@ -3,6 +3,9 @@ import { Route, useLocation } from 'react-router-dom';
 import { screen } from '@testing-library/react';
 import { GuestOnly, RequireRole } from '../src/routes/guards';
 import { asGuest, asUser, renderAt, restoring } from './helpers';
+import userEvent from '@testing-library/user-event';
+import { vi } from 'vitest';
+import * as api from '../src/lib/api';
 
 const Here = ({ name }) => {
   const loc = useLocation();
@@ -70,5 +73,30 @@ describe('GuestOnly', () => {
   it('does not flash the form while the session is restoring', () => {
     renderAt('/guest-only', routes, restoring);
     expect(screen.queryByTestId('page')).toBeNull();
+  });
+});
+
+describe('when the server cannot be reached', () => {
+  const unavailable = { user: null, status: 'unavailable', waking: false };
+  const waking = { user: null, status: 'loading', waking: true };
+
+  it('does not pretend the user is signed out: it explains the problem and offers to try again', async () => {
+    const spy = vi.spyOn(api, 'refreshSession').mockRejectedValue({ response: { status: 401 } });
+    renderAt('/applicant', routes, unavailable);
+    expect(screen.getByRole('alert')).toHaveTextContent('We can’t reach the server');
+    expect(screen.queryByTestId('page')).toBeNull();
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Try again' }));
+    expect(spy).toHaveBeenCalled();
+    spy.mockRestore();
+  });
+
+  it('also covers the login page', () => {
+    renderAt('/guest-only', routes, unavailable);
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+  });
+
+  it('tells the user the server is waking up while the retries run', () => {
+    renderAt('/applicant', routes, waking);
+    expect(screen.getByText(/Waking up the server/)).toBeInTheDocument();
   });
 });

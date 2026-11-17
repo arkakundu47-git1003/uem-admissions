@@ -160,3 +160,30 @@ decision before going live.
 The API writes one JSON line about every 60 seconds, starting `{"type":"performance"`. In the Render dashboard open **Logs** and search for
 `"type":"performance"`. It holds route-template timings and status counts (no IDs, query values or tokens), event-loop delay, process CPU and memory,
 MongoDB command timings and connection-pool waits. How to read it: `docs/PERFORMANCE.md`.
+
+## Cold starts and keeping users signed in
+
+On Render's free plan the API sleeps after about 15 minutes without traffic and needs up to about a minute to wake up. The frontend copes with this:
+
+- A request that has waited more than 6 seconds shows a notice that the server is waking up (requests may wait up to 60 seconds before they fail).
+- When a page is opened and the session cannot be restored because the server did not answer (network error, timeout, 5xx), the app **retries for about 75 seconds**
+  and shows "Waking up the server". It does **not** treat the user as signed out. If the server still does not answer it shows
+  "We can't reach the server" with a **Try again** button.
+- Only a real "no valid session" answer (HTTP 4xx from the refresh call) sends the user to the sign-in page. A failed token refresh caused by a
+  network problem no longer signs the user out either.
+
+A paid plan (always on) removes the wait; the behaviour above then simply never triggers.
+
+## Checking sign-in persistence on Safari / iPhone
+
+The frontend (`*.vercel.app`) and the API (`*.onrender.com`) are different sites, so the refresh cookie is a *third-party* cookie. Chrome currently accepts it; Safari
+(and Firefox in strict mode) may block it, which would make a page reload sign the user out. To check: sign in on an iPhone in Safari, reload the page and see whether you are still signed in.
+
+If you are signed out after a reload, the fix is to make the API appear on the frontend's own domain (the cookie then becomes first-party). In `client/vercel.json` add a rewrite
+before the catch-all route, and clear `VITE_API_URL` in Vercel so the app calls the relative `/api/v1`:
+
+```json
+{ "rewrites": [ { "source": "/api/:path*", "destination": "https://uem-admissions.onrender.com/api/:path*" }, ... existing rewrites ... ] }
+```
+
+Then set `COOKIE_SAMESITE=lax` on Render and keep `CLIENT_ORIGIN` as it is. Test this on a Vercel **preview** first. It is not enabled by default because it changes how every request is routed.

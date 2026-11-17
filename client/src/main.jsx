@@ -8,6 +8,7 @@ import { store } from './store';
 import { queryClient } from './lib/queryClient';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import App from './App';
+import { SlowServerNotice } from './components/shared/SlowServerNotice';
 import './styles/tokens.css';
 import './styles/app.css';
 
@@ -19,6 +20,7 @@ createRoot(document.getElementById('root')).render(
           <BrowserRouter>
             <App />
           </BrowserRouter>
+          <SlowServerNotice />
           <Toaster position="top-right" richColors closeButton toastOptions={{ style: { fontFamily: 'var(--font-body)' } }} />
         </QueryClientProvider>
       </Provider>
