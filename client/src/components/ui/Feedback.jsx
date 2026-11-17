@@ -30,11 +30,11 @@ export function CardSkeletons({ count = 3, h = 190 }) {
   );
 }
 
-export function EmptyState({ icon: Icon = Inbox, title, children, action }) {
+export function EmptyState({ icon: Icon = Inbox, title, children, action, headingLevel: Heading = 'h3' }) {
   return (
     <div className="empty">
       <span className="empty-icon"><Icon size={28} aria-hidden="true" /></span>
-      <h3>{title}</h3>
+      <Heading>{title}</Heading>
       {children && <p>{children}</p>}
       {action}
     </div>

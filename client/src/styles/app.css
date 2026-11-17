@@ -55,9 +55,9 @@ table{border-collapse:collapse;width:100%}
 
 .nowrap{white-space:nowrap}
 
-.stack{display:grid;gap:var(--space-4)}
+.stack{display:grid;grid-template-columns:minmax(0,1fr);gap:var(--space-4)}
 
-.stack-lg{display:grid;gap:var(--space-6)}
+.stack-lg{display:grid;grid-template-columns:minmax(0,1fr);gap:var(--space-6)}
 
 .row{display:flex;align-items:center;gap:var(--space-3);flex-wrap:wrap}
 
@@ -233,7 +233,7 @@ table{border-collapse:collapse;width:100%}
 
 .empty .empty-icon{display:grid;place-items:center;width:64px;height:64px;border-radius:50%;background:var(--primary-soft);color:var(--primary)}
 
-.empty h3{color:var(--text);font-size:var(--text-lg)}
+.empty h1,.empty h3{color:var(--text);font-size:var(--text-lg)}
 
 .empty p{max-width:42ch}
 
@@ -406,6 +406,13 @@ table{border-collapse:collapse;width:100%}
 .nav-burger{display:inline-flex}
 
 @media (min-width: 880px){.nav-links{display:flex}.nav-actions{margin-left:0}.nav-burger{display:none}}
+
+/* Phones: the menu already holds "Sign in", so keep only the primary action in the bar and let the brand shrink. */
+@media (max-width: 560px){.nav-login{display:none}.nav-actions{gap:4px}.brand{gap:8px;min-width:0}.brand-name strong{font-size:1rem}}
+@media (max-width: 380px){.brand-name small{display:none}}
+
+/* Touch: stand-alone text links (footer lists, "Forgot password?") get a comfortable tap height. */
+@media (max-width: 760px), (pointer: coarse){.footer-grid a,main p>a:only-child{display:inline-block;padding-block:6px}}
 
 .mobile-menu{display:grid;gap:4px;padding:var(--space-3) var(--space-4) var(--space-4);border-top:1px solid var(--border);background:var(--surface)}
 

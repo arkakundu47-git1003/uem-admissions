@@ -32,7 +32,7 @@ const AdminAnnouncements = lazy(() => import('./features/admin/AdminAnnouncement
 
 function NotFound() {
   return (
-    <div className="container section"><EmptyState icon={Compass} title="Page not found" action={<Button variant="primary" to="/">Back to home</Button>}>The page you’re looking for doesn’t exist or has moved.</EmptyState></div>
+    <div className="container section"><EmptyState icon={Compass} headingLevel="h1" title="Page not found" action={<Button variant="primary" to="/">Back to home</Button>}>The page you’re looking for doesn’t exist or has moved.</EmptyState></div>
   );
 }
 
