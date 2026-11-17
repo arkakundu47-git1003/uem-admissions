@@ -10,7 +10,7 @@
 | `environment` | Staging/production database guard, `APP_ENV` validation, `/health` body, performance-log labels | No |
 | `cleanup` | Duplicate registration (409, no account created, race-safe), and that the load-test cleanup removes only generated data | **Yes** (`TEST_MONGODB_URI`) |
 | `security`, `workflow` | Token attacks, role and department access, other-applicant data (IDOR), mass assignment, uploads, headers/CORS; every status transition, seat limits, document review, submission rules | **Yes** (`TEST_MONGODB_URI`) |
-| `client/tests/*` (run with `cd client; npm test`) | Login form validation and sign-in flow, role route guards (guest, wrong role, session restoring), password rules, helpers | No |
+| `client/tests/*` (run with `cd client; npm test`) | Login form validation and sign-in flow, role route guards (guest, wrong role, session restoring), password rules, helpers, page-heading level | No |
 | `passwords`, `emailflow`, `reminders`, `export`, `storage`, `backup` | Password reset, reminders, CSV export, document storage, encrypted backup/restore | **Yes** (`TEST_MONGODB_URI`) |
 
 Without `TEST_MONGODB_URI` the database tests **skip themselves**, so a green `npm test` on its own does not mean everything ran.
