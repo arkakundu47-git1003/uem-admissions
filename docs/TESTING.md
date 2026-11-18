@@ -10,6 +10,8 @@
 | `environment` | Staging/production database guard, `APP_ENV` validation, `/health` body, performance-log labels | No |
 | `cleanup` | Duplicate registration (409, no account created, race-safe), and that the load-test cleanup removes only generated data | **Yes** (`TEST_MONGODB_URI`) |
 | `security`, `workflow` | Token attacks, role and department access, other-applicant data (IDOR), mass assignment, uploads, headers/CORS; every status transition, seat limits, document review, submission rules | **Yes** (`TEST_MONGODB_URI`) |
+| `journey`, `dates` | Full applicant journey (register → draft → upload → pay → submit → review → decision → notifications → own download), officer correction loop, admin course/user/announcement/audit flows; Indian-day grouping for reports | `journey`: **Yes** (`TEST_MONGODB_URI`); `dates`: No |
+| `overview` | Dashboard totals, status/course counts, 14-day series, coordinator scoping. Skips itself on FerretDB (needs `$lookup`), so it only runs against real MongoDB (CI). **Not executed in the sandbox used to write it.** | **Yes**, real MongoDB |
 | `client/tests/*` (run with `cd client; npm test`) | Login form validation and sign-in flow, role route guards (guest, wrong role, session restoring), password rules, helpers, page-heading level, session restore with retries when the server is asleep, the slow-server notice, token-refresh handling | No |
 | `passwords`, `emailflow`, `reminders`, `export`, `storage`, `backup` | Password reset, reminders, CSV export, document storage, encrypted backup/restore | **Yes** (`TEST_MONGODB_URI`) |
 

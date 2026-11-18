@@ -62,11 +62,18 @@ router.patch(
     doc.remark = req.body.status === 'rejected' ? req.body.remark : undefined;
     doc.reviewedBy = req.user._id;
     doc.reviewedAt = new Date();
-    if (app.status === 'submitted') {
+    const reviewStarted = app.status === 'submitted';
+    if (reviewStarted) {
       app.status = 'under_review';
       app.history.push({ status: 'under_review', note: 'Review started', by: req.user._id, byName: req.user.name });
     }
     await app.save();
+
+    if (reviewStarted) {
+      // the applicant is told about every status change, including the one a first document review causes
+      const [title, base, type] = MESSAGES.under_review;
+      await notify(app.applicant._id, { title, message: `${base} (${app.applicationNo}, ${app.course.code})`, type, link: `/applicant/applications/${app.id}` });
+    }
 
     if (req.body.status === 'rejected') {
       await notify(app.applicant._id, {

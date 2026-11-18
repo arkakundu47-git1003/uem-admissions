@@ -12,6 +12,7 @@ import { env } from '../config/env.js';
 import { BOM, csvRow } from '../utils/csv.js';
 import { buildReviewFilter } from '../services/applicationFilter.js';
 import { STATUSES } from '../constants.js';
+import { lastIstDays } from '../utils/dates.js';
 import { createResetLink, emailResetLink } from '../services/passwordReset.js';
 
 export const admin = Router();
@@ -67,8 +68,16 @@ admin.patch(
   validate(updateUserSchema),
   asyncHandler(async (req, res) => {
     if (String(req.params.id) === String(req.user._id)) throw new ApiError(409, 'You cannot change your own role or status');
-    const user = await User.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    if (!user) throw new ApiError(404, 'User not found');
+    const current = await User.findById(req.params.id);
+    if (!current) throw new ApiError(404, 'User not found');
+    // A coordinator without a department would review nothing; refuse that state instead of storing it.
+    const role = req.body.role ?? current.role;
+    const department = req.body.department ?? current.department;
+    if (role === 'coordinator' && !department) {
+      throw new ApiError(422, 'Coordinators need a department', { department: 'Coordinators need a department' });
+    }
+    current.set(req.body);
+    const user = await current.save();
     if (req.body.isActive === false) await User.updateOne({ _id: user._id }, { $inc: { tokenVersion: 1 } });
     await audit(req.user, 'user.update', 'User', user.id, req.body);
     res.json({ user });
@@ -99,8 +108,7 @@ reports.get(
   asyncHandler(async (req, res) => {
     const scope = await courseScope(req.user);
     const match = { status: { $ne: 'draft' }, ...(scope ? { course: scope } : {}) };
-    const since = new Date(Date.now() - 13 * 24 * 3600 * 1000);
-    since.setHours(0, 0, 0, 0);
+    const { keys: dayKeys, start: since } = lastIstDays(14);
 
     const [byStatus, byCourse, daily, totals] = await Promise.all([
       Application.aggregate([{ $match: match }, { $group: { _id: '$status', count: { $sum: 1 } } }]),
@@ -128,11 +136,7 @@ reports.get(
 
     // fill missing days so the chart has a continuous x-axis
     const dailyMap = Object.fromEntries(daily.map((d) => [d._id, d.count]));
-    const series = Array.from({ length: 14 }, (_, i) => {
-      const d = new Date(since.getTime() + i * 24 * 3600 * 1000);
-      const key = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(d);
-      return { date: key, count: dailyMap[key] || 0 };
-    });
+    const series = dayKeys.map((key) => ({ date: key, count: dailyMap[key] || 0 }));
 
     res.json({
       totals: { applications: totals[0], applicants: totals[1], openCourses: totals[2], pending: totals[3], accepted: totals[4] },
