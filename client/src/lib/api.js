@@ -1,8 +1,10 @@
 import axios from 'axios';
+import { slowTracker } from './pending';
 
 const baseURL = import.meta.env.VITE_API_URL || '/api/v1';
 
-export const api = axios.create({ baseURL, withCredentials: true, timeout: 30000 });
+// 60 s: a free-tier server that has gone to sleep needs up to about a minute to answer its first request.
+export const api = axios.create({ baseURL, withCredentials: true, timeout: 60000 });
 
 // The access token lives in memory only; the refresh token is an httpOnly cookie.
 let accessToken = null;
@@ -19,8 +21,16 @@ export const configureAuthHandlers = ({ session, expire }) => {
 
 api.interceptors.request.use((config) => {
   if (accessToken) config.headers.Authorization = `Bearer ${accessToken}`;
+  config.__slowId = slowTracker.start();
   return config;
 });
+
+/** A rejection that proves the session is gone (the server answered with a 4xx), as opposed to the server being unreachable. */
+export const isSessionRejection = (err) => {
+  const s = err?.response?.status;
+  return typeof s === 'number' && s >= 400 && s < 500 && s !== 408 && s !== 429;
+};
+
 
 let refreshing = null;
 export function refreshSession() {
@@ -37,6 +47,12 @@ export function refreshSession() {
   return refreshing;
 }
 
+// Registered first so it runs first: stop the "slow server" timer for every request, successful or not.
+api.interceptors.response.use(
+  (res) => { slowTracker.end(res.config?.__slowId); return res; },
+  (err) => { slowTracker.end(err.config?.__slowId); return Promise.reject(err); },
+);
+
 api.interceptors.response.use(
   (res) => res,
   async (error) => {
@@ -48,9 +64,15 @@ api.interceptors.response.use(
         await refreshSession();
         original.headers.Authorization = `Bearer ${accessToken}`;
         return api(original);
-      } catch {
-        accessToken = null;
-        onExpire();
+      } catch (refreshError) {
+        // Only end the session when the server says it is gone. If the server is unreachable or waking up,
+        // keep the user signed in and report the connection problem instead of silently logging them out.
+        if (isSessionRejection(refreshError)) {
+          accessToken = null;
+          onExpire();
+          return Promise.reject(error);
+        }
+        return Promise.reject(refreshError);
       }
     }
     return Promise.reject(error);

@@ -11,8 +11,13 @@ export const Spinner = ({ large = false, label = 'Loading' }) => (
   </span>
 );
 
-export const PageLoader = ({ label = 'Loading' }) => (
-  <div className="page-loader"><Spinner large label={label} /></div>
+export const PageLoader = ({ label = 'Loading', showLabel = false }) => (
+  <div className="page-loader">
+    <div style={{ display: 'grid', justifyItems: 'center', gap: 'var(--space-4)', maxWidth: 420, padding: '0 var(--space-4)', textAlign: 'center' }}>
+      <Spinner large label={label} />
+      {showLabel && <p className="muted" style={{ margin: 0 }}>{label}</p>}
+    </div>
+  </div>
 );
 
 export function CardSkeletons({ count = 3, h = 190 }) {

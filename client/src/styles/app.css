@@ -411,6 +411,8 @@ table{border-collapse:collapse;width:100%}
 @media (max-width: 560px){.nav-login{display:none}.nav-actions{gap:4px}.brand{gap:8px;min-width:0}.brand-name strong{font-size:1rem}}
 @media (max-width: 380px){.brand-name small{display:none}}
 
+.slow-notice{position:fixed;z-index:60;left:50%;bottom:16px;transform:translateX(-50%);width:min(560px,calc(100vw - 32px));padding:var(--space-3) var(--space-4);border:1px solid var(--border-strong);border-radius:var(--radius);background:var(--warning-soft);color:var(--text);box-shadow:var(--shadow);font-size:var(--text-sm);line-height:1.45}
+
 /* Touch: stand-alone text links (footer lists, "Forgot password?") get a comfortable tap height. */
 @media (max-width: 760px), (pointer: coarse){.footer-grid a,main p>a:only-child{display:inline-block;padding-block:6px}}
 
